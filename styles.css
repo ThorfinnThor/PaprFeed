@@ -673,8 +673,26 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .paper-card {
+    padding: 14px;
+  }
+
   .paper-actions {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .paper-actions a,
+  .paper-actions button {
+    min-height: 36px;
+    padding: 0 6px;
+    font-size: 0.8rem;
+  }
+
+  .paper-actions svg {
+    width: 16px;
+    height: 16px;
   }
 
   .detail-panel,
