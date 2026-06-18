@@ -1,0 +1,17 @@
+{
+  "name": "PaprFeed",
+  "short_name": "PaprFeed",
+  "description": "A clean research paper feed for mobile reading.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fbfaf6",
+  "theme_color": "#fbfaf6",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

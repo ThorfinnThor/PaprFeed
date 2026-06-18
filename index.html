@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fbfaf6" />
+    <meta
+      name="description"
+      content="A clean mobile-first research paper feed for arXiv, bioRxiv, medRxiv, and PubMed."
+    />
+    <title>PaprFeed</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon.svg" />
+    <link rel="stylesheet" href="styles.css?v=13" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="top-bar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">P</span>
+          <div>
+            <p class="kicker">Research feed</p>
+            <h1>PaprFeed</h1>
+          </div>
+        </div>
+        <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh feed">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 0 1-15.3 6.4" />
+            <path d="M3 12A9 9 0 0 1 18.3 5.6" />
+            <path d="M18 2v4h-4" />
+            <path d="M6 22v-4h4" />
+          </svg>
+        </button>
+      </header>
+
+      <main>
+        <section class="control-panel" aria-label="Feed controls">
+          <div class="source-tabs" role="tablist" aria-label="Sources">
+            <button class="tab active" type="button" data-source="all">All</button>
+            <button class="tab" type="button" data-source="arxiv">arXiv</button>
+            <button class="tab" type="button" data-source="biorxiv">bioRxiv</button>
+            <button class="tab" type="button" data-source="medrxiv">medRxiv</button>
+            <button class="tab" type="button" data-source="pubmed">PubMed</button>
+          </div>
+
+          <label class="search-box" for="topicInput">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.8-3.8" />
+            </svg>
+            <span class="search-label">Topic</span>
+            <input
+              id="topicInput"
+              name="topic"
+              value="machine learning"
+              autocomplete="off"
+              placeholder="CAR-T, robotics, neuroscience..."
+            />
+          </label>
+
+          <div class="quick-filters" id="quickFilters" aria-label="Quick filters">
+            <button class="filter-chip active" type="button" data-filter="all">All</button>
+            <button class="filter-chip" type="button" data-filter="preprints">Preprints</button>
+            <button class="filter-chip" type="button" data-filter="published">Published</button>
+            <button class="filter-chip" type="button" data-filter="reviews">Reviews</button>
+            <button class="filter-chip" type="button" data-filter="clinical">Clinical trials</button>
+            <button class="filter-chip" type="button" data-filter="free">Free full text</button>
+          </div>
+
+          <div class="filter-row">
+            <label for="categorySelect">
+              <span id="categoryLabel">Focus</span>
+              <select id="categorySelect"></select>
+            </label>
+            <label for="dateSelect">
+              <span>Range</span>
+              <select id="dateSelect">
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </label>
+            <label for="sortSelect">
+              <span>Sort</span>
+              <select id="sortSelect">
+                <option value="newest" selected>Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="source">Source</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="feed-status" aria-live="polite">
+          <div>
+            <span id="statusLabel">Ready</span>
+            <p id="statusDetail">Choose a source or search a topic.</p>
+          </div>
+          <div class="status-actions">
+            <button class="text-button subtle" id="changeInterestsButton" type="button">Interests</button>
+            <button class="text-button" id="savedToggle" type="button">Saved</button>
+          </div>
+        </section>
+
+        <section class="source-counts" id="sourceCounts" aria-label="Loaded source counts"></section>
+
+        <section class="saved-panel hidden" id="savedPanel" aria-label="Saved papers">
+          <div class="panel-heading">
+            <h2>Saved Papers</h2>
+            <button class="text-button subtle" id="closeSavedButton" type="button">Close</button>
+          </div>
+          <div id="savedList" class="saved-list"></div>
+        </section>
+
+        <section id="paperFeed" class="paper-feed" aria-label="Research papers"></section>
+
+        <button class="load-more-button hidden" id="loadMoreButton" type="button">Load more</button>
+      </main>
+    </div>
+
+    <section class="detail-panel hidden" id="detailPanel" aria-label="Paper details" aria-modal="true">
+      <div class="detail-backdrop" id="detailBackdrop"></div>
+      <article class="detail-sheet">
+        <div class="detail-header">
+          <span class="source-pill" id="detailSource"></span>
+          <button class="icon-button small" id="detailCloseButton" type="button" aria-label="Close details">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        </div>
+        <p class="paper-date" id="detailDate"></p>
+        <h2 id="detailTitle"></h2>
+        <p class="authors" id="detailAuthors"></p>
+        <p class="journal" id="detailJournal"></p>
+        <div class="paper-badges" id="detailBadges"></div>
+        <p class="abstract full" id="detailAbstract"></p>
+        <div class="paper-actions">
+          <button class="save-button" id="detailSaveButton" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+            Save
+          </button>
+          <button class="share-button" id="detailShareButton" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="m8.6 13.5 6.8 4" />
+              <path d="m15.4 6.5-6.8 4" />
+            </svg>
+            Share
+          </button>
+          <a class="open-link" id="detailOpenLink" target="_blank" rel="noreferrer">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M14 3h7v7" />
+              <path d="M10 14 21 3" />
+              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+            </svg>
+            Open paper
+          </a>
+        </div>
+      </article>
+    </section>
+
+    <section class="onboarding-panel hidden" id="onboardingPanel" aria-label="Choose interests" aria-modal="true">
+      <div class="detail-backdrop" id="onboardingBackdrop"></div>
+      <article class="onboarding-sheet">
+        <div class="panel-heading">
+          <div>
+            <p class="kicker">First run</p>
+            <h2>Choose your paper feed</h2>
+          </div>
+          <button class="text-button subtle" id="skipOnboardingButton" type="button">Skip</button>
+        </div>
+
+        <div class="onboarding-group">
+          <h3>Interests</h3>
+          <div class="choice-grid" id="interestChoices">
+            <button class="choice-card active" type="button" data-topic="machine learning" data-field="ai">AI/ML</button>
+            <button class="choice-card" type="button" data-topic="medicine" data-field="medicine">Medicine</button>
+            <button class="choice-card" type="button" data-topic="biology" data-field="biology">Biology</button>
+            <button class="choice-card" type="button" data-topic="neuroscience" data-field="neuroscience">Neuroscience</button>
+            <button class="choice-card" type="button" data-topic="genomics" data-field="genomics">Genomics</button>
+            <button class="choice-card" type="button" data-topic="public health" data-field="public-health">Public health</button>
+          </div>
+        </div>
+
+        <div class="onboarding-group">
+          <h3>Source mix</h3>
+          <div class="choice-grid compact" id="mixChoices">
+            <button class="choice-card active" type="button" data-filter="all">All papers</button>
+            <button class="choice-card" type="button" data-filter="preprints">Mostly preprints</button>
+            <button class="choice-card" type="button" data-filter="published">Mostly published</button>
+          </div>
+        </div>
+
+        <button class="load-more-button" id="startBrowsingButton" type="button">Start browsing</button>
+      </article>
+    </section>
+
+    <template id="paperCardTemplate">
+      <article class="paper-card">
+        <div class="paper-meta">
+          <span class="source-pill"></span>
+          <span class="paper-date"></span>
+        </div>
+        <h2></h2>
+        <p class="authors"></p>
+        <p class="journal"></p>
+        <div class="paper-badges"></div>
+        <p class="abstract"></p>
+        <div class="paper-actions">
+          <button class="save-button" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+            Save
+          </button>
+          <button class="hide-button" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M3 3l18 18" />
+              <path d="M10.6 10.6A2 2 0 0 0 13.4 13.4" />
+              <path d="M9.9 4.2A10.5 10.5 0 0 1 12 4c5 0 9 5 10 8a15.5 15.5 0 0 1-2.1 3.7" />
+              <path d="M6.6 6.6A15.2 15.2 0 0 0 2 12c1 3 5 8 10 8a10.7 10.7 0 0 0 5.4-1.6" />
+            </svg>
+            Hide
+          </button>
+          <button class="details-button" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />
+            </svg>
+            Details
+          </button>
+          <button class="share-button" type="button">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <path d="m8.6 13.5 6.8 4" />
+              <path d="m15.4 6.5-6.8 4" />
+            </svg>
+            Share
+          </button>
+          <a class="open-link" target="_blank" rel="noreferrer">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M14 3h7v7" />
+              <path d="M10 14 21 3" />
+              <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+            </svg>
+            Open
+          </a>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js?v=13" type="module"></script>
+  </body>
+</html>
