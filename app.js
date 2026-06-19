@@ -734,17 +734,15 @@ function sortPapers(items) {
   const relevance = (paper) => searchRelevanceScore(paper, topic);
 
   if (SORT_SELECT.value === "oldest") {
-    return next.sort((a, b) => relevance(b) - relevance(a) || dateValue(a.date) - dateValue(b.date));
+    return next.sort((a, b) => dateValue(a.date) - dateValue(b.date) || relevance(b) - relevance(a));
   }
   if (SORT_SELECT.value === "source") {
     return next.sort((a, b) => {
-      const byRelevance = relevance(b) - relevance(a);
-      if (byRelevance) return byRelevance;
       const bySource = a.sourceLabel.localeCompare(b.sourceLabel);
-      return bySource || dateValue(b.date) - dateValue(a.date);
+      return bySource || dateValue(b.date) - dateValue(a.date) || relevance(b) - relevance(a);
     });
   }
-  return next.sort((a, b) => relevance(b) - relevance(a) || dateValue(b.date) - dateValue(a.date));
+  return next.sort((a, b) => dateValue(b.date) - dateValue(a.date) || relevance(b) - relevance(a));
 }
 
 function renderFeed() {
