@@ -16,6 +16,10 @@ const SAVED_TOGGLE = document.querySelector("#savedToggle");
 const SAVED_PANEL = document.querySelector("#savedPanel");
 const SAVED_LIST = document.querySelector("#savedList");
 const CLOSE_SAVED_BUTTON = document.querySelector("#closeSavedButton");
+const AUTH_STATUS = document.querySelector("#authStatus");
+const SIGN_IN_BUTTON = document.querySelector("#signInButton");
+const SIGN_OUT_BUTTON = document.querySelector("#signOutButton");
+const SYNC_NOTE = document.querySelector("#syncNote");
 const DETAIL_PANEL = document.querySelector("#detailPanel");
 const DETAIL_BACKDROP = document.querySelector("#detailBackdrop");
 const DETAIL_CLOSE_BUTTON = document.querySelector("#detailCloseButton");
@@ -128,6 +132,10 @@ let currentDetailPaper = null;
 let canLoadMore = true;
 let isLoadingMore = false;
 let latestRequestId = 0;
+let supabaseClient = null;
+let authUser = null;
+let authReady = false;
+let isSyncingSaved = false;
 
 function migrateLocalStorageKey(oldKey, newKey) {
   if (localStorage.getItem(newKey) || !localStorage.getItem(oldKey)) return;
@@ -148,6 +156,15 @@ function getSaved() {
 
 function setSaved(items) {
   localStorage.setItem(savedKey, JSON.stringify(items));
+}
+
+function mergeSavedPapers(localItems, remoteItems) {
+  const merged = new Map();
+  [...remoteItems, ...localItems].forEach((paper) => {
+    if (!paper?.id) return;
+    merged.set(paper.id, paper);
+  });
+  return [...merged.values()].slice(0, 120);
 }
 
 function getHidden() {
@@ -187,6 +204,7 @@ function toggleSaved(paper) {
   const exists = saved.some((item) => item.id === paper.id);
   const next = exists ? saved.filter((item) => item.id !== paper.id) : [paper, ...saved].slice(0, 60);
   setSaved(next);
+  syncSavedChange(paper, exists ? "remove" : "add");
   renderFeed();
   renderSaved();
 }
@@ -258,6 +276,145 @@ function completeOnboarding(settings) {
 function setStatus(label, detail) {
   STATUS_LABEL.textContent = label;
   STATUS_DETAIL.textContent = detail;
+}
+
+function setSyncNote(message = "") {
+  SYNC_NOTE.textContent = message;
+  SYNC_NOTE.classList.toggle("hidden", !message);
+}
+
+function userLabel(user) {
+  return user?.email || user?.user_metadata?.full_name || "Signed in";
+}
+
+function updateAuthUi() {
+  const configured = Boolean(supabaseClient);
+  SIGN_IN_BUTTON.classList.toggle("hidden", !configured || Boolean(authUser));
+  SIGN_OUT_BUTTON.classList.toggle("hidden", !configured || !authUser);
+  AUTH_STATUS.classList.toggle("hidden", !configured || !authUser);
+  AUTH_STATUS.textContent = authUser ? userLabel(authUser) : "";
+
+  if (!configured) {
+    setSyncNote("");
+    return;
+  }
+
+  setSyncNote(
+    authUser
+      ? "Signed in. Saved papers sync across your devices."
+      : "Sign in with Google to sync saved papers across devices.",
+  );
+}
+
+function cloudRowsFromSaved(items) {
+  if (!authUser) return [];
+  return items.map((paper) => ({
+    user_id: authUser.id,
+    paper_id: paper.id,
+    paper_json: paper,
+    saved_at: new Date().toISOString(),
+  }));
+}
+
+async function loadCloudSaved() {
+  if (!supabaseClient || !authUser) return [];
+  const { data, error } = await supabaseClient
+    .from("saved_papers")
+    .select("paper_json,saved_at")
+    .order("saved_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map((row) => row.paper_json).filter(Boolean);
+}
+
+async function uploadSavedToCloud(items) {
+  if (!supabaseClient || !authUser || !items.length) return;
+  const { error } = await supabaseClient.from("saved_papers").upsert(cloudRowsFromSaved(items), {
+    onConflict: "user_id,paper_id",
+  });
+  if (error) throw error;
+}
+
+async function syncSavedChange(paper, action) {
+  if (!supabaseClient || !authUser || isSyncingSaved) return;
+
+  try {
+    if (action === "remove") {
+      const { error } = await supabaseClient.from("saved_papers").delete().eq("paper_id", paper.id);
+      if (error) throw error;
+      return;
+    }
+
+    await uploadSavedToCloud([paper]);
+  } catch {
+    setSyncNote("Saved locally. Cloud sync will retry after sign in or refresh.");
+  }
+}
+
+async function syncSavedAfterSignIn() {
+  if (!supabaseClient || !authUser || isSyncingSaved) return;
+  isSyncingSaved = true;
+  setSyncNote("Syncing saved papers...");
+
+  try {
+    const localSaved = getSaved();
+    await uploadSavedToCloud(localSaved);
+    const remoteSaved = await loadCloudSaved();
+    setSaved(mergeSavedPapers(localSaved, remoteSaved));
+    renderFeed();
+    renderSaved();
+    setSyncNote("Signed in. Saved papers sync across your devices.");
+  } catch {
+    setSyncNote("Signed in, but saved papers could not sync yet.");
+  } finally {
+    isSyncingSaved = false;
+  }
+}
+
+async function signInWithGoogle() {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + window.location.pathname,
+    },
+  });
+  if (error) setSyncNote("Google sign-in could not start. Check Supabase setup.");
+}
+
+async function signOut() {
+  if (!supabaseClient) return;
+  await supabaseClient.auth.signOut();
+}
+
+async function initAuth() {
+  try {
+    const { SUPABASE_ANON_KEY, SUPABASE_URL } = await import("./supabase-config.js");
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      updateAuthUi();
+      return;
+    }
+
+    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data } = await supabaseClient.auth.getSession();
+    authUser = data.session?.user ?? null;
+    authReady = true;
+    updateAuthUi();
+    if (authUser) syncSavedAfterSignIn();
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+      authUser = session?.user ?? null;
+      updateAuthUi();
+      if (authUser) syncSavedAfterSignIn();
+      renderFeed();
+      renderSaved();
+    });
+  } catch {
+    authReady = false;
+    updateAuthUi();
+  }
 }
 
 function resetPaging() {
@@ -1035,6 +1192,9 @@ CLOSE_SAVED_BUTTON.addEventListener("click", () => {
   SAVED_PANEL.classList.add("hidden");
 });
 
+SIGN_IN_BUTTON.addEventListener("click", signInWithGoogle);
+SIGN_OUT_BUTTON.addEventListener("click", signOut);
+
 DETAIL_CLOSE_BUTTON.addEventListener("click", closeDetail);
 DETAIL_BACKDROP.addEventListener("click", closeDetail);
 DETAIL_SAVE_BUTTON.addEventListener("click", () => {
@@ -1090,6 +1250,7 @@ if ("serviceWorker" in navigator) {
 resetPaging();
 setCategories(activeSource);
 renderSaved();
+initAuth();
 const onboarding = getOnboarding();
 if (onboarding?.completed) {
   applyOnboardingSettings(onboarding);

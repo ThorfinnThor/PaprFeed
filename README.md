@@ -35,6 +35,7 @@ http://127.0.0.1:5173
 - Share papers through the phone share sheet or clipboard fallback
 - PDF/full-text/type badges where metadata is available
 - Saved papers in local browser storage
+- Optional Google sign-in with Supabase to sync saved papers across devices
 - PWA manifest
 - Service worker for basic offline caching
 - Cloudflare Pages Function proxy with edge caching in `functions/api/proxy.js`
@@ -56,6 +57,97 @@ The proxy also supports optional PubMed/NCBI settings through Cloudflare environ
 - `NCBI_API_KEY`
 
 These are not required for a small test, but they are recommended before a bigger public launch.
+
+## Google sign-in and saved-paper sync
+
+PaprFeed works without login. Saved papers are stored locally in the browser. To sync saved papers across devices, connect Supabase Auth and Database.
+
+### 1. Create a Supabase project
+
+1. Go to `https://supabase.com`.
+2. Sign in.
+3. Click `New project`.
+4. Choose your organization.
+5. Project name: `paprfeed`.
+6. Create a database password and store it somewhere safe.
+7. Choose the closest region.
+8. Click `Create new project`.
+
+### 2. Create the saved papers table
+
+1. In Supabase, open your `paprfeed` project.
+2. Click `SQL Editor`.
+3. Click `New query`.
+4. Paste the contents of `supabase-schema.sql`.
+5. Click `Run`.
+
+This creates `saved_papers` with Row Level Security, so signed-in users can only access their own saved papers.
+
+### 3. Enable Google login
+
+1. In Supabase, go to `Authentication`.
+2. Go to `URL Configuration`.
+3. Set `Site URL` to your live PaprFeed URL, for example:
+
+```text
+https://paprfeed.pages.dev
+```
+
+4. Add the same URL to `Redirect URLs`.
+5. Go to `Providers`.
+6. Open `Google`.
+7. Enable Google.
+8. Copy the `Callback URL` shown on the Google provider page. It will look like:
+
+```text
+https://your-project-ref.supabase.co/auth/v1/callback
+```
+
+9. Go to Google Cloud Console.
+10. Create an OAuth client ID with application type `Web application`.
+11. Under `Authorized JavaScript origins`, add your live PaprFeed origin:
+
+```text
+https://paprfeed.pages.dev
+```
+
+12. Under `Authorized redirect URIs`, add the Supabase callback URL from step 8.
+13. Copy the Google `Client ID` and `Client Secret`.
+14. Go back to Supabase's Google provider page.
+15. Paste the Client ID and Client Secret.
+16. Save.
+
+Use your real Cloudflare Pages URL if it is different from `https://paprfeed.pages.dev`.
+
+### 4. Add Supabase URL and anon key
+
+1. In Supabase, go to `Project Settings`.
+2. Go to `API`.
+3. Copy the `Project URL`.
+4. Copy the `anon public` key.
+5. Open `supabase-config.js`.
+6. Paste them:
+
+```js
+export const SUPABASE_URL = "https://your-project-ref.supabase.co";
+export const SUPABASE_ANON_KEY = "your-anon-public-key";
+```
+
+The anon key is meant to be public. Do not paste the service role key into this app.
+
+### 5. Deploy again
+
+Upload/push these files to GitHub:
+
+- `index.html`
+- `styles.css`
+- `app.js`
+- `sw.js`
+- `supabase-config.js`
+- `supabase-schema.sql`
+- `README.md`
+
+Cloudflare Pages should redeploy automatically. Then open the live app, click `Saved`, and use `Sign in`.
 
 ## Free deployment path
 

@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/icon.svg" />
-    <link rel="stylesheet" href="styles.css?v=14" />
+    <link rel="stylesheet" href="styles.css?v=15" />
   </head>
   <body>
     <div class="app-shell">
@@ -109,8 +109,14 @@
         <section class="saved-panel hidden" id="savedPanel" aria-label="Saved papers">
           <div class="panel-heading">
             <h2>Saved Papers</h2>
-            <button class="text-button subtle" id="closeSavedButton" type="button">Close</button>
+            <div class="panel-actions">
+              <span class="auth-status hidden" id="authStatus"></span>
+              <button class="text-button" id="signInButton" type="button">Sign in</button>
+              <button class="text-button subtle hidden" id="signOutButton" type="button">Sign out</button>
+              <button class="text-button subtle" id="closeSavedButton" type="button">Close</button>
+            </div>
           </div>
+          <p class="sync-note hidden" id="syncNote"></p>
           <div id="savedList" class="saved-list"></div>
         </section>
 
@@ -259,6 +265,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=14" type="module"></script>
+    <script src="app.js?v=15" type="module"></script>
   </body>
 </html>

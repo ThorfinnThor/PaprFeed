@@ -495,6 +495,31 @@ select {
   font-size: 1rem;
 }
 
+.panel-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.auth-status {
+  max-width: 190px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-note {
+  margin: -2px 0 10px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
 .saved-item {
   display: grid;
   gap: 4px;
@@ -698,6 +723,19 @@ select {
   .detail-panel,
   .onboarding-panel {
     padding: 0;
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+  }
+
+  .panel-actions {
+    gap: 6px;
+  }
+
+  .auth-status {
+    flex-basis: 100%;
+    max-width: 160px;
   }
 
   .detail-sheet,
