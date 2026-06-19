@@ -467,6 +467,10 @@ function queryTerms(topic) {
   return [...new Set([...quoted, ...words])];
 }
 
+function significantQueryTerms(topic) {
+  return queryTerms(topic).filter((term) => term.length >= 3 || /[0-9-]/.test(term));
+}
+
 function termVariants(term) {
   const variants = [term];
   if (term.includes("-")) variants.push(term.replace(/-/g, " "));
@@ -478,8 +482,8 @@ function searchablePaperText(paper) {
 }
 
 function paperMatchesTopic(paper, topic) {
-  const terms = queryTerms(topic);
-  if (terms.length < 2) return true;
+  const terms = significantQueryTerms(topic);
+  if (!terms.length) return true;
   const text = searchablePaperText(paper);
   return terms.every((term) => termVariants(term).some((variant) => text.includes(variant)));
 }
@@ -506,8 +510,8 @@ function arxivTermForTopic(topic) {
 }
 
 function searchRelevanceScore(paper, topic) {
-  const terms = queryTerms(topic);
-  if (terms.length < 2) return 0;
+  const terms = significantQueryTerms(topic);
+  if (!terms.length) return 0;
 
   const title = normalizeSearchText(paper.title);
   const abstract = normalizeSearchText(paper.abstract);
@@ -1087,6 +1091,7 @@ async function fetchAllSources(options = {}) {
   const topic = cleanText(TOPIC_INPUT.value) || sourceSettings.all.defaultTopic;
   const defaults = sourceDefaultsForTopic(topic, CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? 8;
+  const pubMedMaxResults = options.pubMedMaxResults ?? (significantQueryTerms(topic).length === 1 ? 20 : maxResults);
   const tasks = [];
 
   if (!isPubMedFilter(activeQuickFilter)) {
@@ -1096,7 +1101,7 @@ async function fetchAllSources(options = {}) {
   }
 
   if (activeQuickFilter !== "preprints") {
-    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults, start: sourceOffsets.pubmed }));
+    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults: pubMedMaxResults, start: sourceOffsets.pubmed }));
   }
 
   const requests = await Promise.allSettled(tasks);
