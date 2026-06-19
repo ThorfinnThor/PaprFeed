@@ -447,6 +447,87 @@ function cleanText(value) {
     .trim();
 }
 
+function normalizeSearchText(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[‐‑‒–—−]/g, "-");
+}
+
+function queryTerms(topic) {
+  const text = normalizeSearchText(topic);
+  if (!text || text.length < 2) return [];
+
+  const quoted = [...text.matchAll(/"([^"]+)"/g)].map((match) => match[1]).filter(Boolean);
+  const withoutQuoted = text.replace(/"[^"]+"/g, " ");
+  const words = withoutQuoted
+    .split(/[^a-z0-9-]+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 1 && !["and", "or", "the", "with", "for"].includes(term));
+
+  return [...new Set([...quoted, ...words])];
+}
+
+function termVariants(term) {
+  const variants = [term];
+  if (term.includes("-")) variants.push(term.replace(/-/g, " "));
+  return [...new Set(variants)];
+}
+
+function searchablePaperText(paper) {
+  return normalizeSearchText([paper.title, paper.abstract, paper.journal, paper.authors, paper.sourceLabel].join(" "));
+}
+
+function paperMatchesTopic(paper, topic) {
+  const terms = queryTerms(topic);
+  if (terms.length < 2) return true;
+  const text = searchablePaperText(paper);
+  return terms.every((term) => termVariants(term).some((variant) => text.includes(variant)));
+}
+
+function filterTopicMatches(items, topic) {
+  return items.filter((paper) => paperMatchesTopic(paper, topic));
+}
+
+function pubMedTermForTopic(topic) {
+  const terms = queryTerms(topic);
+  if (!terms.length) return cleanText(topic);
+  return terms
+    .map((term) => {
+      const variants = termVariants(term).map((variant) => `"${variant}"[Title/Abstract]`);
+      return variants.length > 1 ? `(${variants.join(" OR ")})` : variants[0];
+    })
+    .join(" AND ");
+}
+
+function arxivTermForTopic(topic) {
+  const terms = queryTerms(topic);
+  if (!terms.length) return `all:${encodeURIComponent(cleanText(topic))}`;
+  return terms.map((term) => `all:${encodeURIComponent(term)}`).join("+AND+");
+}
+
+function searchRelevanceScore(paper, topic) {
+  const terms = queryTerms(topic);
+  if (terms.length < 2) return 0;
+
+  const title = normalizeSearchText(paper.title);
+  const abstract = normalizeSearchText(paper.abstract);
+  const allText = searchablePaperText(paper);
+  const exactTopic = normalizeSearchText(topic).replace(/^"|"$/g, "");
+  let score = 0;
+
+  if (exactTopic && title.includes(exactTopic)) score += 14;
+  if (exactTopic && abstract.includes(exactTopic)) score += 8;
+
+  terms.forEach((term) => {
+    const variants = termVariants(term);
+    if (variants.some((variant) => title.includes(variant))) score += 5;
+    if (variants.some((variant) => abstract.includes(variant))) score += 2;
+    if (variants.some((variant) => allText.includes(variant))) score += 1;
+  });
+
+  return score;
+}
+
 function truncate(value, length = 430) {
   const text = cleanText(value);
   if (text.length <= length) return text;
@@ -633,16 +714,21 @@ function fieldLabel(field) {
 
 function sortPapers(items) {
   const next = [...items];
+  const topic = cleanText(TOPIC_INPUT.value);
+  const relevance = (paper) => searchRelevanceScore(paper, topic);
+
   if (SORT_SELECT.value === "oldest") {
-    return next.sort((a, b) => dateValue(a.date) - dateValue(b.date));
+    return next.sort((a, b) => relevance(b) - relevance(a) || dateValue(a.date) - dateValue(b.date));
   }
   if (SORT_SELECT.value === "source") {
     return next.sort((a, b) => {
+      const byRelevance = relevance(b) - relevance(a);
+      if (byRelevance) return byRelevance;
       const bySource = a.sourceLabel.localeCompare(b.sourceLabel);
       return bySource || dateValue(b.date) - dateValue(a.date);
     });
   }
-  return next.sort((a, b) => dateValue(b.date) - dateValue(a.date));
+  return next.sort((a, b) => relevance(b) - relevance(a) || dateValue(b.date) - dateValue(a.date));
 }
 
 function renderFeed() {
@@ -829,11 +915,11 @@ async function fetchArxiv(options = {}) {
   const category = options.category ?? CATEGORY_SELECT.value;
   const maxResults = options.maxResults ?? 20;
   const start = options.start ?? sourceOffsets.arxiv ?? 0;
-  const query = `cat:${category}+AND+all:${encodeURIComponent(topic)}`;
+  const query = `cat:${category}+AND+${arxivTermForTopic(topic)}`;
   const url = `https://export.arxiv.org/api/query?search_query=${query}&start=${start}&max_results=${maxResults}&sortBy=submittedDate&sortOrder=descending`;
   const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs });
   if (!response.ok) throw new Error("arXiv request failed");
-  return parseArxiv(await response.text());
+  return filterTopicMatches(parseArxiv(await response.text()), topic);
 }
 
 async function fetchBioRxivLike(source, options = {}) {
@@ -847,7 +933,8 @@ async function fetchBioRxivLike(source, options = {}) {
   if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
   const data = await response.json();
 
-  return (data.collection ?? []).slice(0, maxResults).map((paper) => ({
+  const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
+  const papers = (data.collection ?? []).map((paper) => ({
     id: `${source}:${paper.doi}`,
     source,
     sourceLabel: sourceSettings[source].label,
@@ -858,6 +945,8 @@ async function fetchBioRxivLike(source, options = {}) {
     date: paper.date,
     url: `https://doi.org/${paper.doi}`,
   }));
+
+  return filterTopicMatches(papers, topic).slice(0, maxResults);
 }
 
 function parsePubMedDate(article) {
@@ -935,7 +1024,7 @@ async function fetchPubMed(options = {}) {
   const days = DATE_SELECT.value;
   const maxResults = options.maxResults ?? 20;
   const start = options.start ?? sourceOffsets.pubmed ?? 0;
-  const term = encodeURIComponent(`${topic}${fieldFilter}`);
+  const term = encodeURIComponent(`${pubMedTermForTopic(topic)}${fieldFilter}`);
   const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${maxResults}&sort=pub+date&reldate=${days}&datetype=pdat`;
   const searchResponse = await fetchWithTimeout(searchUrl);
   if (!searchResponse.ok) throw new Error("PubMed search failed");
@@ -946,7 +1035,7 @@ async function fetchPubMed(options = {}) {
   const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`;
   const fetchResponse = await fetchWithTimeout(fetchUrl);
   if (!fetchResponse.ok) throw new Error("PubMed records failed");
-  return parsePubMedArticles(await fetchResponse.text());
+  return filterTopicMatches(parsePubMedArticles(await fetchResponse.text()), topic);
 }
 
 function inferredField(topic, selectedField = "auto") {
@@ -1002,8 +1091,8 @@ async function fetchAllSources(options = {}) {
 
   if (!isPubMedFilter(activeQuickFilter)) {
     tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults, start: sourceOffsets.arxiv, timeoutMs: 2500 }));
-    tasks.push(fetchBioRxivLike("biorxiv", { category: defaults.biorxiv, maxResults, cursor: sourceOffsets.biorxiv }));
-    tasks.push(fetchBioRxivLike("medrxiv", { category: defaults.medrxiv, maxResults, cursor: sourceOffsets.medrxiv }));
+    tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults, cursor: sourceOffsets.biorxiv }));
+    tasks.push(fetchBioRxivLike("medrxiv", { topic, category: defaults.medrxiv, maxResults, cursor: sourceOffsets.medrxiv }));
   }
 
   if (activeQuickFilter !== "preprints") {
@@ -1060,7 +1149,7 @@ async function loadFeed() {
     let nextPapers = [];
     if (source === "all") nextPapers = await fetchAllSources();
     if (source === "arxiv") nextPapers = await fetchArxiv();
-    if (source === "biorxiv" || source === "medrxiv") nextPapers = await fetchBioRxivLike(source);
+    if (source === "biorxiv" || source === "medrxiv") nextPapers = await fetchBioRxivLike(source, { topic: TOPIC_INPUT.value });
     if (source === "pubmed") nextPapers = await fetchPubMed({ typeFilter: pubMedTypeFilter() });
     if (requestId !== latestRequestId) return;
 
@@ -1095,7 +1184,7 @@ async function loadMore() {
     let nextPapers = [];
     if (source === "all") nextPapers = await fetchAllSources();
     if (source === "arxiv") nextPapers = await fetchArxiv();
-    if (source === "biorxiv" || source === "medrxiv") nextPapers = await fetchBioRxivLike(source);
+    if (source === "biorxiv" || source === "medrxiv") nextPapers = await fetchBioRxivLike(source, { topic: TOPIC_INPUT.value });
     if (source === "pubmed") nextPapers = await fetchPubMed({ typeFilter: pubMedTypeFilter() });
     if (requestId !== latestRequestId) return;
 

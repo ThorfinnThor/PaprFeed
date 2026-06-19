@@ -44,6 +44,8 @@ http://127.0.0.1:5173
 
 The deployed app sends research API requests through `/api/proxy`. The proxy caches successful responses at the Cloudflare edge so many users can share the same API result instead of every phone calling arXiv, PubMed, bioRxiv, and medRxiv separately.
 
+Search is strict for multi-term topics. A query like `cd19 car-t` is treated as `cd19` AND `car-t`, and returned papers must mention both terms in title, abstract, journal, authors, or source metadata. PubMed and arXiv also receive stricter AND-style API queries where supported.
+
 Current cache times:
 
 - arXiv: 2 hours
