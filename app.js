@@ -43,6 +43,7 @@ const MIX_CHOICES = document.querySelector("#mixChoices");
 const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
+const BROAD_PUBMED_BATCH_SIZE = 60;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
@@ -560,6 +561,17 @@ function getDateRange(days) {
   };
 }
 
+function filterBySelectedDateRange(papers) {
+  const { start, end } = getDateRange(DATE_SELECT.value);
+  const startMs = new Date(`${start}T00:00:00Z`).valueOf();
+  const endMs = new Date(`${end}T23:59:59Z`).valueOf();
+
+  return papers.filter((paper) => {
+    const value = dateValue(paper.date);
+    return value >= startMs && value <= endMs;
+  });
+}
+
 async function fetchWithTimeout(url, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? 7000);
@@ -923,7 +935,7 @@ async function fetchArxiv(options = {}) {
   const url = `https://export.arxiv.org/api/query?search_query=${query}&start=${start}&max_results=${maxResults}&sortBy=submittedDate&sortOrder=descending`;
   const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs });
   if (!response.ok) throw new Error("arXiv request failed");
-  return filterTopicMatches(parseArxiv(await response.text()), topic);
+  return filterBySelectedDateRange(filterTopicMatches(parseArxiv(await response.text()), topic));
 }
 
 async function fetchBioRxivLike(source, options = {}) {
@@ -1091,7 +1103,8 @@ async function fetchAllSources(options = {}) {
   const topic = cleanText(TOPIC_INPUT.value) || sourceSettings.all.defaultTopic;
   const defaults = sourceDefaultsForTopic(topic, CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? 8;
-  const pubMedMaxResults = options.pubMedMaxResults ?? (significantQueryTerms(topic).length === 1 ? 20 : maxResults);
+  const pubMedMaxResults =
+    options.pubMedMaxResults ?? (significantQueryTerms(topic).length === 1 ? BROAD_PUBMED_BATCH_SIZE : maxResults);
   const tasks = [];
 
   if (!isPubMedFilter(activeQuickFilter)) {
