@@ -38,6 +38,7 @@ http://127.0.0.1:5173
 - PDF/full-text/type badges where metadata is available
 - Saved papers in local browser storage
 - Remove saved papers with a desktop button or a left swipe on mobile
+- Live saved-paper count in the feed and Saved panel
 - Optional Google sign-in with Supabase to sync saved papers across devices
 - PWA manifest
 - Service worker for basic offline caching

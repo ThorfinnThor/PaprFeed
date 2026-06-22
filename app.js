@@ -14,7 +14,9 @@ const LOAD_MORE_BUTTON = document.querySelector("#loadMoreButton");
 const LOAD_MORE_NOTE = document.querySelector("#loadMoreNote");
 const CHANGE_INTERESTS_BUTTON = document.querySelector("#changeInterestsButton");
 const SAVED_TOGGLE = document.querySelector("#savedToggle");
+const SAVED_COUNT = document.querySelector("#savedCount");
 const SAVED_PANEL = document.querySelector("#savedPanel");
+const PANEL_SAVED_COUNT = document.querySelector("#panelSavedCount");
 const SAVED_LIST = document.querySelector("#savedList");
 const CLOSE_SAVED_BUTTON = document.querySelector("#closeSavedButton");
 const AUTH_STATUS = document.querySelector("#authStatus");
@@ -840,6 +842,10 @@ function renderFeed() {
 
 function renderSaved() {
   const saved = getSaved();
+  const count = saved.length;
+  SAVED_COUNT.textContent = count;
+  PANEL_SAVED_COUNT.textContent = count;
+  SAVED_TOGGLE.setAttribute("aria-label", `Saved papers, ${count} saved`);
   SAVED_LIST.replaceChildren();
 
   if (!saved.length) {

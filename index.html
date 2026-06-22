@@ -102,7 +102,10 @@
           </div>
           <div class="status-actions">
             <button class="text-button subtle" id="changeInterestsButton" type="button">Interests</button>
-            <button class="text-button" id="savedToggle" type="button">Saved</button>
+            <button class="text-button" id="savedToggle" type="button">
+              Saved
+              <span class="saved-count" id="savedCount" aria-hidden="true">0</span>
+            </button>
           </div>
         </section>
 
@@ -110,7 +113,7 @@
 
         <section class="saved-panel hidden" id="savedPanel" aria-label="Saved papers">
           <div class="panel-heading">
-            <h2>Saved Papers</h2>
+            <h2>Saved Papers <span class="panel-saved-count" id="panelSavedCount">0</span></h2>
             <div class="panel-actions">
               <span class="auth-status hidden" id="authStatus"></span>
               <button class="text-button" id="signInButton" type="button">Sign in</button>
