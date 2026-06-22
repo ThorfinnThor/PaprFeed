@@ -213,6 +213,16 @@ function toggleSaved(paper) {
   renderSaved();
 }
 
+function removeSavedPaper(paper) {
+  if (!isSaved(paper.id)) return;
+  setSaved(getSaved().filter((item) => item.id !== paper.id));
+  syncSavedChange(paper, "remove");
+  renderFeed();
+  renderSaved();
+  updateDetailSaveButton();
+  setStatus("Removed from saved", paper.title);
+}
+
 function hidePaper(paper) {
   const hidden = new Set(getHidden());
   hidden.add(paper.id);
@@ -841,8 +851,14 @@ function renderSaved() {
   }
 
   saved.forEach((paper) => {
+    const shell = document.createElement("div");
+    shell.className = "saved-item-shell";
+
     const item = document.createElement("div");
     item.className = "saved-item";
+
+    const text = document.createElement("div");
+    text.className = "saved-item-text";
 
     const link = document.createElement("a");
     link.href = paper.url;
@@ -853,9 +869,79 @@ function renderSaved() {
     const meta = document.createElement("span");
     meta.textContent = [paper.sourceLabel, paper.journal, formatDate(paper.date)].filter(Boolean).join(" · ");
 
-    item.append(link, meta);
-    SAVED_LIST.append(item);
+    const removeButton = document.createElement("button");
+    removeButton.className = "saved-remove-button";
+    removeButton.type = "button";
+    removeButton.title = "Remove saved paper";
+    removeButton.setAttribute("aria-label", `Remove ${paper.title} from saved papers`);
+    removeButton.innerHTML = `
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v5M14 11v5" />
+      </svg>
+      <span>Remove</span>
+    `;
+    removeButton.addEventListener("click", () => removeSavedPaper(paper));
+
+    text.append(link, meta);
+    item.append(text);
+    shell.append(item, removeButton);
+    enableSavedItemSwipe(shell, item);
+    SAVED_LIST.append(shell);
   });
+}
+
+function enableSavedItemSwipe(shell, item) {
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let tracking = false;
+  let horizontal = false;
+
+  const settle = (open) => {
+    shell.classList.toggle("swipe-open", open);
+    item.style.transform = "";
+  };
+
+  item.addEventListener("pointerdown", (event) => {
+    const isTouchPointer = event.pointerType === "touch" || event.pointerType === "pen";
+    if (!isTouchPointer && !window.matchMedia("(max-width: 430px)").matches) return;
+    document.querySelectorAll(".saved-item-shell.swipe-open").forEach((openItem) => {
+      if (openItem !== shell) openItem.classList.remove("swipe-open");
+    });
+    tracking = true;
+    horizontal = false;
+    startX = event.clientX;
+    startY = event.clientY;
+    currentX = shell.classList.contains("swipe-open") ? -88 : 0;
+    item.setPointerCapture(event.pointerId);
+  });
+
+  item.addEventListener("pointermove", (event) => {
+    if (!tracking) return;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (!horizontal && Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+    if (!horizontal && Math.abs(deltaY) >= Math.abs(deltaX)) {
+      tracking = false;
+      return;
+    }
+    horizontal = true;
+    const origin = shell.classList.contains("swipe-open") ? -88 : 0;
+    currentX = Math.max(-88, Math.min(0, origin + deltaX));
+    item.style.transform = `translateX(${currentX}px)`;
+  });
+
+  const finishSwipe = () => {
+    if (!tracking) return;
+    tracking = false;
+    settle(horizontal ? currentX < -44 : shell.classList.contains("swipe-open"));
+  };
+
+  item.addEventListener("pointerup", finishSwipe);
+  item.addEventListener("pointercancel", finishSwipe);
 }
 
 async function sharePaper(paper) {

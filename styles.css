@@ -543,6 +543,12 @@ select {
   line-height: 1.35;
 }
 
+.saved-item-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .saved-item {
   display: grid;
   gap: 4px;
@@ -550,6 +556,12 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+}
+
+.saved-item-text {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
 }
 
 .saved-item a {
@@ -561,6 +573,32 @@ select {
 .saved-item span {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.saved-remove-button {
+  display: inline-flex;
+  min-width: 42px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid rgba(151, 58, 51, 0.3);
+  border-radius: 8px;
+  color: #873c36;
+  background: #fff8f6;
+  cursor: pointer;
+}
+
+.saved-remove-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.saved-remove-button span {
+  color: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .empty-state {
@@ -842,6 +880,41 @@ select {
   .auth-status {
     flex-basis: 100%;
     max-width: 160px;
+  }
+
+  .saved-item-shell {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #9b4039;
+  }
+
+  .saved-item {
+    position: relative;
+    z-index: 1;
+    min-height: 76px;
+    touch-action: pan-y;
+    transition: transform 180ms ease;
+    will-change: transform;
+  }
+
+  .saved-item-shell.swipe-open .saved-item {
+    transform: translateX(-88px);
+  }
+
+  .saved-remove-button {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 88px;
+    min-height: 100%;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px;
+    border: 0;
+    border-radius: 0;
+    color: #fff;
+    background: #9b4039;
   }
 
   .detail-sheet,
