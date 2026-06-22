@@ -11,12 +11,14 @@ const SORT_SELECT = document.querySelector("#sortSelect");
 const REFRESH_BUTTON = document.querySelector("#refreshButton");
 const SOURCE_COUNTS = document.querySelector("#sourceCounts");
 const LOAD_MORE_BUTTON = document.querySelector("#loadMoreButton");
+const LOAD_MORE_NOTE = document.querySelector("#loadMoreNote");
 const CHANGE_INTERESTS_BUTTON = document.querySelector("#changeInterestsButton");
 const SAVED_TOGGLE = document.querySelector("#savedToggle");
 const SAVED_PANEL = document.querySelector("#savedPanel");
 const SAVED_LIST = document.querySelector("#savedList");
 const CLOSE_SAVED_BUTTON = document.querySelector("#closeSavedButton");
 const AUTH_STATUS = document.querySelector("#authStatus");
+const HEADER_SIGN_IN_BUTTON = document.querySelector("#headerSignInButton");
 const SIGN_IN_BUTTON = document.querySelector("#signInButton");
 const SIGN_OUT_BUTTON = document.querySelector("#signOutButton");
 const SYNC_NOTE = document.querySelector("#syncNote");
@@ -290,6 +292,7 @@ function userLabel(user) {
 
 function updateAuthUi() {
   const configured = Boolean(supabaseClient);
+  HEADER_SIGN_IN_BUTTON.classList.toggle("hidden", !configured || Boolean(authUser));
   SIGN_IN_BUTTON.classList.toggle("hidden", !configured || Boolean(authUser));
   SIGN_OUT_BUTTON.classList.toggle("hidden", !configured || !authUser);
   AUTH_STATUS.classList.toggle("hidden", !configured || !authUser);
@@ -397,7 +400,7 @@ async function initAuth() {
       return;
     }
 
-    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
     supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const { data } = await supabaseClient.auth.getSession();
     authUser = data.session?.user ?? null;
@@ -638,8 +641,28 @@ function renderSourceCounts() {
 
 function updateLoadMoreButton() {
   LOAD_MORE_BUTTON.classList.toggle("hidden", !papers.length);
+  LOAD_MORE_NOTE.classList.toggle("hidden", !papers.length);
   LOAD_MORE_BUTTON.disabled = !canLoadMore || isLoadingMore;
   LOAD_MORE_BUTTON.textContent = isLoadingMore ? "Loading..." : canLoadMore ? "Load more" : "No more papers";
+
+  if (!papers.length) {
+    LOAD_MORE_NOTE.textContent = "";
+    return;
+  }
+
+  const countLabel = papers.length === 1 ? "paper" : "papers";
+  const topic = cleanText(TOPIC_INPUT.value) || sourceSettings[activeSource].defaultTopic;
+  const broadAllPubMedBatch =
+    activeSource === "all" && activeQuickFilter !== "preprints" && significantQueryTerms(topic).length === 1;
+  const nextBatchText = canLoadMore
+    ? activeSource === "all"
+      ? "Load more fetches another batch from each active source."
+      : `Load more fetches another ${sourceSettings[activeSource].label} batch.`
+    : "No more papers are available in the current batch.";
+  const broadBatchText = broadAllPubMedBatch
+    ? ` Broad PubMed searches can include up to ${BROAD_PUBMED_BATCH_SIZE} PubMed papers per batch.`
+    : "";
+  LOAD_MORE_NOTE.textContent = `Showing ${papers.length} ${countLabel}. ${nextBatchText}${broadBatchText}`;
 }
 
 function paperBadges(paper) {
@@ -1160,6 +1183,7 @@ async function loadFeed() {
   FEED.replaceChildren();
   SOURCE_COUNTS.replaceChildren();
   LOAD_MORE_BUTTON.classList.add("hidden");
+  LOAD_MORE_NOTE.classList.add("hidden");
 
   try {
     let nextPapers = [];
@@ -1298,6 +1322,7 @@ CLOSE_SAVED_BUTTON.addEventListener("click", () => {
 });
 
 SIGN_IN_BUTTON.addEventListener("click", signInWithGoogle);
+HEADER_SIGN_IN_BUTTON.addEventListener("click", signInWithGoogle);
 SIGN_OUT_BUTTON.addEventListener("click", signOut);
 
 DETAIL_CLOSE_BUTTON.addEventListener("click", closeDetail);

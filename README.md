@@ -58,6 +58,17 @@ The proxy also supports optional PubMed/NCBI settings through Cloudflare environ
 - `NCBI_EMAIL`
 - `NCBI_API_KEY`
 
+For security, the proxy only allows browser requests from your own app origin. If you use a custom domain later, add a
+Cloudflare Pages environment variable:
+
+- `ALLOWED_ORIGINS`
+
+Set it to your allowed domains separated by commas, for example:
+
+```text
+https://paprfeed.pages.dev,https://www.your-domain.com
+```
+
 These are not required for a small test, but they are recommended before a bigger public launch.
 
 ## Google sign-in and saved-paper sync
@@ -84,6 +95,9 @@ PaprFeed works without login. Saved papers are stored locally in the browser. To
 5. Click `Run`.
 
 This creates `saved_papers` with Row Level Security, so signed-in users can only access their own saved papers.
+
+If you already created the table earlier, run the latest `supabase-schema.sql` again. It adds extra limits so users can
+only store reasonably sized saved-paper records.
 
 ### 3. Enable Google login
 
@@ -137,14 +151,24 @@ export const SUPABASE_ANON_KEY = "your-anon-public-key";
 
 The anon key is meant to be public. Do not paste the service role key into this app.
 
+### Security notes
+
+- Never put the Supabase `service_role` key into this app or GitHub.
+- Keep Row Level Security enabled for every public Supabase table.
+- The Cloudflare `_headers` file adds browser security headers, including a Content Security Policy.
+- The privacy page explains what is stored locally and what is synced after Google sign-in.
+
 ### 5. Deploy again
 
 Upload/push these files to GitHub:
 
+- `_headers`
+- `.gitignore`
 - `index.html`
 - `styles.css`
 - `app.js`
 - `sw.js`
+- `privacy.html`
 - `supabase-config.js`
 - `supabase-schema.sql`
 - `README.md`

@@ -75,6 +75,14 @@ a {
   gap: 11px;
 }
 
+.top-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .brand-mark {
   display: grid;
   width: 43px;
@@ -330,6 +338,14 @@ select {
   background: transparent;
 }
 
+.header-sign-in {
+  min-height: 42px;
+  padding: 0 14px;
+  color: #fffefa;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
 .source-counts {
   display: flex;
   flex-wrap: wrap;
@@ -552,10 +568,31 @@ select {
 .load-more-button {
   width: 100%;
   min-height: 48px;
-  margin-top: 14px;
+  margin-top: 8px;
   color: #fffefa;
   border-color: var(--accent-strong);
   background: var(--accent-strong);
+}
+
+.load-more-note {
+  margin: 15px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.app-footer {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 4px;
+}
+
+.app-footer a {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .load-more-button:disabled {
@@ -563,6 +600,34 @@ select {
   border-color: var(--line);
   background: rgba(255, 254, 250, 0.78);
   cursor: default;
+}
+
+.privacy-page {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: max(22px, env(safe-area-inset-top)) 18px 34px;
+}
+
+.privacy-page h1 {
+  margin: 22px 0 18px;
+}
+
+.privacy-page h2 {
+  margin: 24px 0 8px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.privacy-page p {
+  max-width: 64ch;
+  color: #3f3c35;
+  line-height: 1.65;
+}
+
+.privacy-back {
+  width: fit-content;
 }
 
 .detail-panel {
@@ -692,6 +757,40 @@ select {
   .app-shell {
     padding-right: 12px;
     padding-left: 12px;
+  }
+
+  .top-bar {
+    gap: 10px;
+  }
+
+  .brand-lockup {
+    min-width: 0;
+  }
+
+  .top-actions {
+    gap: 6px;
+  }
+
+  .header-sign-in {
+    min-height: 38px;
+    padding: 0 10px;
+    font-size: 0.82rem;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .icon-button {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
   }
 
   .filter-row {
