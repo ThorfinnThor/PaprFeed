@@ -33,6 +33,7 @@ http://127.0.0.1:5173
 - Change interests from the main feed
 - Clear Topic + Field behavior: Topic is the search term, Field guides source categories
 - Share papers through the phone share sheet or clipboard fallback
+- Copy a simple citation from each paper card
 - PDF/full-text/type badges where metadata is available
 - Saved papers in local browser storage
 - Optional Google sign-in with Supabase to sync saved papers across devices

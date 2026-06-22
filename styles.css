@@ -310,6 +310,7 @@ select {
 .hide-button,
 .share-button,
 .details-button,
+.cite-button,
 .load-more-button {
   display: inline-flex;
   align-items: center;
@@ -488,6 +489,12 @@ select {
 }
 
 .save-button.saved {
+  color: #fff;
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+}
+
+.cite-button.copied {
   color: #fff;
   border-color: var(--accent-strong);
   background: var(--accent-strong);

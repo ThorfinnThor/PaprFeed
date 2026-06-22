@@ -1,4 +1,4 @@
-const CACHE_NAME = "paprfeed-v22";
+const CACHE_NAME = "paprfeed-v24";
 const APP_FILES = [
   "./",
   "./index.html",

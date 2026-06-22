@@ -789,6 +789,7 @@ function renderFeed() {
     const hideButton = node.querySelector(".hide-button");
     const detailsButton = node.querySelector(".details-button");
     const shareButton = node.querySelector(".share-button");
+    const citeButton = node.querySelector(".cite-button");
     const openLink = node.querySelector(".open-link");
 
     sourcePill.textContent = paper.sourceLabel;
@@ -812,6 +813,7 @@ function renderFeed() {
     hideButton.addEventListener("click", () => hidePaper(paper));
     detailsButton.addEventListener("click", () => openDetail(paper));
     shareButton.addEventListener("click", () => sharePaper(paper));
+    citeButton.addEventListener("click", () => copyCitation(paper, citeButton));
     FEED.append(node);
   });
 }
@@ -870,6 +872,59 @@ async function sharePaper(paper) {
   }
 
   setStatus("Share link", paper.url);
+}
+
+function citationForPaper(paper) {
+  const authors = cleanText(paper.authors) || "Authors not listed";
+  const parsedDate = new Date(paper.date);
+  const year = Number.isNaN(parsedDate.valueOf()) ? "n.d." : parsedDate.getFullYear();
+  const title = cleanText(paper.title);
+  const punctuatedTitle = /[.!?]$/.test(title) ? title : `${title}.`;
+  const publication = cleanText(paper.journal || paper.sourceLabel);
+  const identifier = paper.doi ? `https://doi.org/${paper.doi}` : paper.url;
+
+  return `${authors} (${year}). ${punctuatedTitle} ${publication}. ${identifier}`;
+}
+
+async function writeToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Fall through for browsers that expose Clipboard API but deny access.
+    }
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Clipboard copy failed");
+}
+
+async function copyCitation(paper, button) {
+  const label = button.querySelector("span");
+
+  try {
+    await writeToClipboard(citationForPaper(paper));
+    button.classList.add("copied");
+    label.textContent = "Copied";
+    window.setTimeout(() => {
+      button.classList.remove("copied");
+      label.textContent = "Cite";
+    }, 1600);
+  } catch {
+    label.textContent = "Try again";
+    window.setTimeout(() => {
+      label.textContent = "Cite";
+    }, 1600);
+  }
 }
 
 function openDetail(paper) {
