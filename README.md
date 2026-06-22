@@ -30,6 +30,7 @@ http://127.0.0.1:5173
 - Hide papers locally on one device
 - Reset hidden papers from the source-count row
 - First-run onboarding for interests and source mix
+- Skipping onboarding opens a neutral All sources + Auto feed sorted by newest
 - Change interests from the main feed
 - Clear Topic + Field behavior: Topic is the search term, Field guides source categories
 - Share papers through the phone share sheet or clipboard fallback

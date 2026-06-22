@@ -46,6 +46,7 @@ const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
 const BROAD_PUBMED_BATCH_SIZE = 60;
+const ONBOARDING_VERSION = 2;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
@@ -258,16 +259,20 @@ function applyOnboardingSettings(settings) {
   activateSource("all");
   setCategories("all");
   setActiveQuickFilter(settings.filter ?? "all");
-  TOPIC_INPUT.value = settings.topic ?? sourceSettings.all.defaultTopic;
+  TOPIC_INPUT.value = settings.mode === "latest" ? "" : (settings.topic ?? sourceSettings.all.defaultTopic);
   CATEGORY_SELECT.value = settings.field ?? "auto";
+  SORT_SELECT.value = settings.sort ?? "newest";
 }
 
 function completeOnboarding(settings) {
   const nextSettings = {
     completed: true,
+    version: ONBOARDING_VERSION,
     topic: settings.topic ?? onboardingTopic,
     field: settings.field ?? onboardingField,
     filter: settings.filter ?? onboardingFilter,
+    mode: settings.mode ?? "personalized",
+    sort: settings.sort ?? "newest",
     completedAt: new Date().toISOString(),
   };
   setOnboarding(nextSettings);
@@ -651,9 +656,12 @@ function updateLoadMoreButton() {
   }
 
   const countLabel = papers.length === 1 ? "paper" : "papers";
-  const topic = cleanText(TOPIC_INPUT.value) || sourceSettings[activeSource].defaultTopic;
+  const topic = cleanText(TOPIC_INPUT.value);
   const broadAllPubMedBatch =
-    activeSource === "all" && activeQuickFilter !== "preprints" && significantQueryTerms(topic).length === 1;
+    Boolean(topic) &&
+    activeSource === "all" &&
+    activeQuickFilter !== "preprints" &&
+    significantQueryTerms(topic).length === 1;
   const nextBatchText = canLoadMore
     ? activeSource === "all"
       ? "Load more fetches another batch from each active source."
@@ -729,7 +737,9 @@ function selectedFieldLabel() {
 }
 
 function feedDescription(source) {
-  const topic = cleanText(TOPIC_INPUT.value) || sourceSettings[source].defaultTopic;
+  const topic = cleanText(TOPIC_INPUT.value);
+  if (!topic && source === "all") return "Newest papers. Field: Auto.";
+  if (!topic) return `Newest papers. ${sourceSettings[source].categoryLabel}: ${selectedFieldLabel()}.`;
   if (source === "all") {
     const field = CATEGORY_SELECT.value;
     const inferred = inferredField(topic, field);
@@ -1003,11 +1013,13 @@ function parseArxiv(xmlText) {
 }
 
 async function fetchArxiv(options = {}) {
-  const topic = cleanText(options.topic ?? TOPIC_INPUT.value) || sourceSettings.arxiv.defaultTopic;
+  const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
   const category = options.category ?? CATEGORY_SELECT.value;
   const maxResults = options.maxResults ?? 20;
   const start = options.start ?? sourceOffsets.arxiv ?? 0;
-  const query = `cat:${category}+AND+${arxivTermForTopic(topic)}`;
+  const categoryTerm = category && category !== "auto" ? `cat:${category}` : "";
+  const topicTerm = topic ? arxivTermForTopic(topic) : "";
+  const query = [categoryTerm, topicTerm].filter(Boolean).join("+AND+") || "all:*";
   const url = `https://export.arxiv.org/api/query?search_query=${query}&start=${start}&max_results=${maxResults}&sortBy=submittedDate&sortOrder=descending`;
   const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs });
   if (!response.ok) throw new Error("arXiv request failed");
@@ -1016,11 +1028,12 @@ async function fetchArxiv(options = {}) {
 
 async function fetchBioRxivLike(source, options = {}) {
   const { start, end } = getDateRange(DATE_SELECT.value);
-  const category = encodeURIComponent(options.category ?? CATEGORY_SELECT.value);
+  const category = cleanText(options.category ?? CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? 25;
   const cursor = options.cursor ?? sourceOffsets[source] ?? 0;
   const apiSource = source === "medrxiv" ? "medrxiv" : "biorxiv";
-  const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${cursor}?category=${category}`;
+  const categoryQuery = category && category !== "auto" ? `?category=${encodeURIComponent(category)}` : "";
+  const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${cursor}${categoryQuery}`;
   const response = await fetchWithTimeout(url);
   if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
   const data = await response.json();
@@ -1110,13 +1123,14 @@ function parsePubMedArticles(xmlText) {
 }
 
 async function fetchPubMed(options = {}) {
-  const topic = cleanText(options.topic ?? TOPIC_INPUT.value) || sourceSettings.pubmed.defaultTopic;
+  const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
   const typeFilter = options.typeFilter ?? CATEGORY_SELECT.value;
   const fieldFilter = typeFilter === "all" ? "" : ` AND ${typeFilter}`;
   const days = DATE_SELECT.value;
   const maxResults = options.maxResults ?? 20;
   const start = options.start ?? sourceOffsets.pubmed ?? 0;
-  const term = encodeURIComponent(`${pubMedTermForTopic(topic)}${fieldFilter}`);
+  const topicTerm = topic ? pubMedTermForTopic(topic) : "all[sb]";
+  const term = encodeURIComponent(`${topicTerm}${fieldFilter}`);
   const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${maxResults}&sort=pub+date&reldate=${days}&datetype=pdat`;
   const searchResponse = await fetchWithTimeout(searchUrl);
   if (!searchResponse.ok) throw new Error("PubMed search failed");
@@ -1176,8 +1190,10 @@ function sourceDefaultsForTopic(topic, selectedField = "auto") {
 }
 
 async function fetchAllSources(options = {}) {
-  const topic = cleanText(TOPIC_INPUT.value) || sourceSettings.all.defaultTopic;
-  const defaults = sourceDefaultsForTopic(topic, CATEGORY_SELECT.value);
+  const topic = cleanText(TOPIC_INPUT.value);
+  const defaults = topic
+    ? sourceDefaultsForTopic(topic, CATEGORY_SELECT.value)
+    : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
   const maxResults = options.maxResults ?? 8;
   const pubMedMaxResults =
     options.pubMedMaxResults ?? (significantQueryTerms(topic).length === 1 ? BROAD_PUBMED_BATCH_SIZE : maxResults);
@@ -1409,20 +1425,26 @@ MIX_CHOICES.querySelectorAll(".choice-card").forEach((button) => {
 });
 
 START_BROWSING_BUTTON.addEventListener("click", () => {
-  completeOnboarding({ topic: onboardingTopic, field: onboardingField, filter: onboardingFilter });
+  completeOnboarding({
+    topic: onboardingTopic,
+    field: onboardingField,
+    filter: onboardingFilter,
+    mode: "personalized",
+    sort: "newest",
+  });
 });
 
 SKIP_ONBOARDING_BUTTON.addEventListener("click", () => {
-  completeOnboarding({ topic: sourceSettings.all.defaultTopic, field: "auto", filter: "all" });
+  completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
 });
 
 ONBOARDING_BACKDROP.addEventListener("click", () => {
-  completeOnboarding({ topic: sourceSettings.all.defaultTopic, field: "auto", filter: "all" });
+  completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
 });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !ONBOARDING_PANEL.classList.contains("hidden")) {
-    completeOnboarding({ topic: sourceSettings.all.defaultTopic, field: "auto", filter: "all" });
+    completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
     return;
   }
   if (event.key === "Escape" && !DETAIL_PANEL.classList.contains("hidden")) closeDetail();
@@ -1437,10 +1459,9 @@ setCategories(activeSource);
 renderSaved();
 initAuth();
 const onboarding = getOnboarding();
-if (onboarding?.completed) {
+if (onboarding?.completed && onboarding.version === ONBOARDING_VERSION) {
   applyOnboardingSettings(onboarding);
   loadFeed();
 } else {
-  loadFeed();
   showOnboarding();
 }
