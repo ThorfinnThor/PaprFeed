@@ -48,7 +48,7 @@ const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
 const BROAD_PUBMED_BATCH_SIZE = 60;
-const ONBOARDING_VERSION = 2;
+const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
@@ -64,7 +64,7 @@ const pubMedFilterMap = {
 const sourceSettings = {
   all: {
     label: "All sources",
-    defaultTopic: "machine learning",
+    defaultTopic: "",
     categoryLabel: "Field",
     categories: [
       ["auto", "Auto"],
@@ -128,8 +128,8 @@ const sourceSettings = {
 
 let activeSource = "all";
 let activeQuickFilter = "all";
-let onboardingTopic = "machine learning";
-let onboardingField = "ai";
+let onboardingTopic = "";
+let onboardingField = "auto";
 let onboardingFilter = "all";
 let papers = [];
 let sourceCounts = {};
@@ -243,9 +243,10 @@ function resetHiddenPapers() {
 
 function showOnboarding() {
   const current = getOnboarding();
-  onboardingTopic = current?.topic ?? TOPIC_INPUT.value ?? onboardingTopic;
-  onboardingField = current?.field ?? CATEGORY_SELECT.value ?? onboardingField;
-  onboardingFilter = current?.filter ?? activeQuickFilter;
+  const validCurrent = current?.version === ONBOARDING_VERSION ? current : null;
+  onboardingTopic = validCurrent?.topic ?? TOPIC_INPUT.value ?? "";
+  onboardingField = validCurrent?.field ?? CATEGORY_SELECT.value ?? "auto";
+  onboardingFilter = validCurrent?.filter ?? activeQuickFilter;
   INTEREST_CHOICES.querySelectorAll(".choice-card").forEach((choice) => {
     choice.classList.toggle("active", choice.dataset.field === onboardingField);
   });
@@ -274,6 +275,10 @@ function applyOnboardingSettings(settings) {
   TOPIC_INPUT.value = settings.mode === "latest" ? "" : (settings.topic ?? sourceSettings.all.defaultTopic);
   CATEGORY_SELECT.value = settings.field ?? "auto";
   SORT_SELECT.value = settings.sort ?? "newest";
+}
+
+function latestFeedSettings() {
+  return { topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" };
 }
 
 function completeOnboarding(settings) {
@@ -1527,16 +1532,16 @@ START_BROWSING_BUTTON.addEventListener("click", () => {
 });
 
 SKIP_ONBOARDING_BUTTON.addEventListener("click", () => {
-  completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
+  completeOnboarding(latestFeedSettings());
 });
 
 ONBOARDING_BACKDROP.addEventListener("click", () => {
-  completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
+  completeOnboarding(latestFeedSettings());
 });
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && !ONBOARDING_PANEL.classList.contains("hidden")) {
-    completeOnboarding({ topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" });
+    completeOnboarding(latestFeedSettings());
     return;
   }
   if (event.key === "Escape" && !DETAIL_PANEL.classList.contains("hidden")) closeDetail();
