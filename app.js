@@ -1193,18 +1193,85 @@ async function fetchBioRxivLike(source, options = {}) {
   return collected.slice(0, maxResults);
 }
 
-function parsePubMedDate(article) {
-  const articleDate = article.querySelector("ArticleDate");
-  const pubDate = article.querySelector("JournalIssue PubDate");
-  const year = cleanText(articleDate?.querySelector("Year")?.textContent ?? pubDate?.querySelector("Year")?.textContent);
-  const month = cleanText(articleDate?.querySelector("Month")?.textContent ?? pubDate?.querySelector("Month")?.textContent);
-  const day = cleanText(articleDate?.querySelector("Day")?.textContent ?? pubDate?.querySelector("Day")?.textContent);
-  const medlineDate = cleanText(pubDate?.querySelector("MedlineDate")?.textContent);
+function parsePubMedMonth(value) {
+  const text = cleanText(value).toLowerCase();
+  if (!text) return 1;
+  const numeric = Number(text);
+  if (numeric >= 1 && numeric <= 12) return numeric;
+  const months = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+    spring: 3,
+    summer: 6,
+    fall: 9,
+    autumn: 9,
+    winter: 12,
+  };
+  return months[text.slice(0, 3)] ?? months[text] ?? 1;
+}
 
-  if (!year) return medlineDate;
-  const parsedMonth = Number(month) || new Date(`${month} 1, 2000`).getMonth() + 1 || 1;
-  const parsedDay = Number(day) || 1;
-  return `${year}-${String(parsedMonth).padStart(2, "0")}-${String(parsedDay).padStart(2, "0")}`;
+function isoDateFromParts(year, month = "1", day = "1") {
+  const parsedYear = Number(cleanText(year));
+  if (!parsedYear) return "";
+  const parsedMonth = parsePubMedMonth(month);
+  const parsedDay = Math.max(1, Math.min(31, Number(cleanText(day)) || 1));
+  return `${parsedYear}-${String(parsedMonth).padStart(2, "0")}-${String(parsedDay).padStart(2, "0")}`;
+}
+
+function dateFromPubMedNode(node) {
+  if (!node) return "";
+  return isoDateFromParts(
+    node.querySelector("Year")?.textContent,
+    node.querySelector("Month")?.textContent,
+    node.querySelector("Day")?.textContent,
+  );
+}
+
+function dateFromMedlineText(value) {
+  const text = cleanText(value);
+  const match = text.match(/(\d{4})(?:\s+([A-Za-z]+))?/);
+  return match ? isoDateFromParts(match[1], match[2] || "1", "1") : "";
+}
+
+function parsePubMedDate(article) {
+  const candidates = [];
+  const addDate = (value) => {
+    const date = cleanText(value);
+    const timestamp = dateValue(date);
+    if (date && timestamp && timestamp <= Date.now() + 86400000) candidates.push(date);
+  };
+
+  article.querySelectorAll("ArticleDate").forEach((node) => addDate(dateFromPubMedNode(node)));
+  article.querySelectorAll("JournalIssue PubDate").forEach((node) => {
+    addDate(dateFromPubMedNode(node));
+    addDate(dateFromMedlineText(node.querySelector("MedlineDate")?.textContent));
+  });
+  article.querySelectorAll("PubMedPubDate").forEach((node) => addDate(dateFromPubMedNode(node)));
+
+  if (!candidates.length) return "";
+  return candidates.sort((a, b) => dateValue(b) - dateValue(a))[0];
 }
 
 function parsePubMedArticles(xmlText) {
