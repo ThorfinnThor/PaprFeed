@@ -48,6 +48,7 @@ const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
 const BROAD_PUBMED_BATCH_SIZE = 60;
+const MIXED_FEED_PUBMED_BATCH_SIZE = 36;
 const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
@@ -138,6 +139,7 @@ let currentDetailPaper = null;
 let canLoadMore = true;
 let isLoadingMore = false;
 let latestRequestId = 0;
+let emptyFeedMessage = "";
 let supabaseClient = null;
 let authUser = null;
 let authReady = false;
@@ -674,22 +676,12 @@ function updateLoadMoreButton() {
   }
 
   const countLabel = papers.length === 1 ? "paper" : "papers";
-  const topic = cleanText(TOPIC_INPUT.value);
-  const termCount = significantQueryTerms(topic).length;
-  const broadPubMedBatch =
-    activeQuickFilter !== "preprints" &&
-    ((activeSource === "all" && isPubMedFilter(activeQuickFilter)) ||
-      activeSource === "pubmed" ||
-      (activeSource === "all" && termCount === 1));
   const nextBatchText = canLoadMore
     ? activeSource === "all"
       ? "Load more fetches another batch from each active source."
       : `Load more fetches another ${sourceSettings[activeSource].label} batch.`
     : "No more papers are available in the current batch.";
-  const broadBatchText = broadPubMedBatch
-    ? ` Broad PubMed feeds can include up to ${BROAD_PUBMED_BATCH_SIZE} PubMed papers per batch.`
-    : "";
-  LOAD_MORE_NOTE.textContent = `Showing ${papers.length} ${countLabel}. ${nextBatchText}${broadBatchText}`;
+  LOAD_MORE_NOTE.textContent = `Showing ${papers.length} ${countLabel}. ${nextBatchText}`;
 }
 
 function paperBadges(paper) {
@@ -806,7 +798,7 @@ function renderFeed() {
   if (!papers.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "No papers found yet. Try another topic, source, or date range.";
+    empty.textContent = emptyFeedMessage || "No papers found yet. Try another topic, source, or date range.";
     FEED.append(empty);
     return;
   }
@@ -1399,13 +1391,17 @@ function sourceDefaultsForTopic(topic, selectedField = "auto") {
 
 async function fetchAllSources(options = {}) {
   const topic = cleanText(TOPIC_INPUT.value);
-  const termCount = significantQueryTerms(topic).length;
   const defaults = topic
     ? sourceDefaultsForTopic(topic, CATEGORY_SELECT.value)
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
   const maxResults = options.maxResults ?? 8;
   const pubMedMaxResults =
-    options.pubMedMaxResults ?? (isPubMedFilter(activeQuickFilter) || termCount === 1 ? BROAD_PUBMED_BATCH_SIZE : maxResults);
+    options.pubMedMaxResults ??
+    (activeQuickFilter === "preprints"
+      ? 0
+      : isPubMedFilter(activeQuickFilter)
+        ? BROAD_PUBMED_BATCH_SIZE
+        : MIXED_FEED_PUBMED_BATCH_SIZE);
   const tasks = [];
 
   if (!isPubMedFilter(activeQuickFilter)) {
@@ -1424,41 +1420,12 @@ async function fetchAllSources(options = {}) {
   return items;
 }
 
-function fallbackPapers(source) {
-  const label = sourceSettings[source].label;
-  return [
-    {
-      id: `${source}:demo-1`,
-      source,
-      sourceLabel: label,
-      title: "Live API results could not be loaded in this browser session",
-      authors: "PaprFeed demo",
-      journal: source === "pubmed" ? "Example journal" : "",
-      abstract:
-        "This app is wired for real research APIs. If a source blocks direct browser requests, the next step is adding a small free serverless proxy so the same interface can fetch live papers reliably.",
-      date: new Date().toISOString(),
-      url: "https://www.ncbi.nlm.nih.gov/books/NBK25497/",
-    },
-    {
-      id: `${source}:demo-2`,
-      source,
-      sourceLabel: label,
-      title: "Saved papers work locally on your device",
-      authors: "PaprFeed demo",
-      journal: "",
-      abstract:
-        "Tap Save on papers you want to revisit. For the first version, saved papers are stored in your browser so the app stays free and does not need user accounts.",
-      date: new Date().toISOString(),
-      url: "https://api.biorxiv.org/",
-    },
-  ];
-}
-
 async function loadFeed() {
   const requestId = ++latestRequestId;
   const source = activeSource;
   const label = sourceSettings[source].label;
   resetPaging();
+  emptyFeedMessage = "";
   setStatus("Loading", `Fetching ${label}. ${feedDescription(source)}`);
   FEED.replaceChildren();
   SOURCE_COUNTS.replaceChildren();
@@ -1482,9 +1449,14 @@ async function loadFeed() {
   } catch (error) {
     if (requestId !== latestRequestId) return;
     const cached = loadCachedFeed(source);
-    papers = sortPapers(cached?.items?.length ? removeHidden(cached.items) : removeHidden(fallbackPapers(source)));
+    papers = sortPapers(cached?.items?.length ? removeHidden(cached.items) : []);
     canLoadMore = false;
-    setStatus("Offline Preview", `${label} could not load live results. Showing cached or demo papers.`);
+    if (papers.length) {
+      setStatus("Cached Feed", `${label} could not load live results. Showing your last successful results.`);
+    } else {
+      emptyFeedMessage = "Could not load live papers right now. Try refresh, another topic, or another source.";
+      setStatus("Could not load", `${label} could not load live results right now.`);
+    }
   }
 
   renderFeed();
