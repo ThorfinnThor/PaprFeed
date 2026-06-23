@@ -629,6 +629,7 @@ function mergeUnique(existing, incoming) {
 
 function updateOffsets(items) {
   items.forEach((paper) => {
+    if (paper.source === "biorxiv" || paper.source === "medrxiv") return;
     if (sourceOffsets[paper.source] !== undefined) sourceOffsets[paper.source] += 1;
   });
 }
@@ -1064,22 +1065,35 @@ function updateDetailSaveButton() {
   DETAIL_SAVE_BUTTON.lastChild.textContent = saved ? " Saved" : " Save";
 }
 
+function feedCacheKey(source, topic = TOPIC_INPUT.value) {
+  return [
+    cacheKeyPrefix,
+    source,
+    activeQuickFilter,
+    cleanText(topic) || "latest",
+    CATEGORY_SELECT.value || "auto",
+    DATE_SELECT.value || "30",
+  ].join(":");
+}
+
 function cacheFeed(source, topic, items) {
   localStorage.setItem(
-    `${cacheKeyPrefix}:${source}:${activeQuickFilter}`,
+    feedCacheKey(source, topic),
     JSON.stringify({
       source,
       filter: activeQuickFilter,
-      topic,
+      topic: cleanText(topic),
+      category: CATEGORY_SELECT.value,
+      range: DATE_SELECT.value,
       items,
       savedAt: new Date().toISOString(),
     }),
   );
 }
 
-function loadCachedFeed(source) {
+function loadCachedFeed(source, topic = TOPIC_INPUT.value) {
   try {
-    return JSON.parse(localStorage.getItem(`${cacheKeyPrefix}:${source}:${activeQuickFilter}`));
+    return JSON.parse(localStorage.getItem(feedCacheKey(source, topic)));
   } catch {
     return null;
   }
@@ -1127,28 +1141,56 @@ async function fetchBioRxivLike(source, options = {}) {
   const { start, end } = getDateRange(DATE_SELECT.value);
   const category = cleanText(options.category ?? CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? 25;
-  const cursor = options.cursor ?? sourceOffsets[source] ?? 0;
+  let cursor = options.cursor ?? sourceOffsets[source] ?? 0;
   const apiSource = source === "medrxiv" ? "medrxiv" : "biorxiv";
   const categoryQuery = category && category !== "auto" ? `?category=${encodeURIComponent(category)}` : "";
-  const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${cursor}${categoryQuery}`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
-  const data = await response.json();
-
   const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
-  const papers = (data.collection ?? []).map((paper) => ({
-    id: `${source}:${paper.doi}`,
-    source,
-    sourceLabel: sourceSettings[source].label,
-    title: cleanText(paper.title),
-    authors: cleanText(paper.authors),
-    journal: source === "medrxiv" ? "medRxiv preprint" : "bioRxiv preprint",
-    abstract: cleanText(paper.abstract),
-    date: paper.date,
-    url: `https://doi.org/${paper.doi}`,
-  }));
+  const fetchPage = async (pageCursor) => {
+    const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${pageCursor}${categoryQuery}`;
+    const response = await fetchWithTimeout(url);
+    if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
+    return response.json();
+  };
+  const normalizePapers = (data) =>
+    (data.collection ?? []).map((paper) => ({
+      id: `${source}:${paper.doi}`,
+      source,
+      sourceLabel: sourceSettings[source].label,
+      title: cleanText(paper.title),
+      authors: cleanText(paper.authors),
+      journal: source === "medrxiv" ? "medRxiv preprint" : "bioRxiv preprint",
+      abstract: cleanText(paper.abstract),
+      date: paper.date,
+      url: `https://doi.org/${paper.doi}`,
+    }));
 
-  return filterTopicMatches(papers, topic).slice(0, maxResults);
+  let data = await fetchPage(cursor);
+  const pageSize = Number(data.messages?.[0]?.count) || maxResults || 30;
+
+  if (SORT_SELECT.value === "newest" && cursor === 0) {
+    const total = Number(data.messages?.[0]?.total) || 0;
+    const newestCursor = Math.max(0, total - pageSize);
+    if (newestCursor > 0) {
+      cursor = newestCursor;
+      data = await fetchPage(cursor);
+    }
+  }
+
+  const collected = [];
+  let pageCursor = cursor;
+  const maxPages = topic ? 4 : 1;
+
+  for (let page = 0; page < maxPages; page += 1) {
+    collected.push(...filterTopicMatches(normalizePapers(data), topic));
+    if (collected.length >= maxResults || SORT_SELECT.value !== "newest" || pageCursor <= 0) break;
+    pageCursor = Math.max(0, pageCursor - pageSize);
+    data = await fetchPage(pageCursor);
+  }
+
+  sourceOffsets[source] =
+    SORT_SELECT.value === "newest" ? Math.max(0, pageCursor - pageSize) : cursor + Number(data.messages?.[0]?.count ?? pageSize);
+
+  return collected.slice(0, maxResults);
 }
 
 function parsePubMedDate(article) {
@@ -1370,7 +1412,7 @@ async function loadFeed() {
   } catch (error) {
     if (requestId !== latestRequestId) return;
     const cached = loadCachedFeed(source);
-    papers = cached?.items?.length ? removeHidden(cached.items) : removeHidden(fallbackPapers(source));
+    papers = sortPapers(cached?.items?.length ? removeHidden(cached.items) : removeHidden(fallbackPapers(source)));
     canLoadMore = false;
     setStatus("Offline Preview", `${label} could not load live results. Showing cached or demo papers.`);
   }
