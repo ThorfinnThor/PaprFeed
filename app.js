@@ -675,18 +675,19 @@ function updateLoadMoreButton() {
 
   const countLabel = papers.length === 1 ? "paper" : "papers";
   const topic = cleanText(TOPIC_INPUT.value);
-  const broadAllPubMedBatch =
-    Boolean(topic) &&
-    activeSource === "all" &&
+  const termCount = significantQueryTerms(topic).length;
+  const broadPubMedBatch =
     activeQuickFilter !== "preprints" &&
-    significantQueryTerms(topic).length === 1;
+    ((activeSource === "all" && isPubMedFilter(activeQuickFilter)) ||
+      activeSource === "pubmed" ||
+      (activeSource === "all" && termCount === 1));
   const nextBatchText = canLoadMore
     ? activeSource === "all"
       ? "Load more fetches another batch from each active source."
       : `Load more fetches another ${sourceSettings[activeSource].label} batch.`
     : "No more papers are available in the current batch.";
-  const broadBatchText = broadAllPubMedBatch
-    ? ` Broad PubMed searches can include up to ${BROAD_PUBMED_BATCH_SIZE} PubMed papers per batch.`
+  const broadBatchText = broadPubMedBatch
+    ? ` Broad PubMed feeds can include up to ${BROAD_PUBMED_BATCH_SIZE} PubMed papers per batch.`
     : "";
   LOAD_MORE_NOTE.textContent = `Showing ${papers.length} ${countLabel}. ${nextBatchText}${broadBatchText}`;
 }
@@ -1333,7 +1334,8 @@ async function fetchPubMed(options = {}) {
   const typeFilter = options.typeFilter ?? CATEGORY_SELECT.value;
   const fieldFilter = typeFilter === "all" ? "" : ` AND ${typeFilter}`;
   const days = DATE_SELECT.value;
-  const maxResults = options.maxResults ?? 20;
+  const termCount = significantQueryTerms(topic).length;
+  const maxResults = options.maxResults ?? (termCount <= 1 ? BROAD_PUBMED_BATCH_SIZE : 20);
   const start = options.start ?? sourceOffsets.pubmed ?? 0;
   const topicTerm = topic ? pubMedTermForTopic(topic) : "all[sb]";
   const term = encodeURIComponent(`${topicTerm}${fieldFilter}`);
@@ -1397,12 +1399,13 @@ function sourceDefaultsForTopic(topic, selectedField = "auto") {
 
 async function fetchAllSources(options = {}) {
   const topic = cleanText(TOPIC_INPUT.value);
+  const termCount = significantQueryTerms(topic).length;
   const defaults = topic
     ? sourceDefaultsForTopic(topic, CATEGORY_SELECT.value)
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
   const maxResults = options.maxResults ?? 8;
   const pubMedMaxResults =
-    options.pubMedMaxResults ?? (significantQueryTerms(topic).length === 1 ? BROAD_PUBMED_BATCH_SIZE : maxResults);
+    options.pubMedMaxResults ?? (isPubMedFilter(activeQuickFilter) || termCount === 1 ? BROAD_PUBMED_BATCH_SIZE : maxResults);
   const tasks = [];
 
   if (!isPubMedFilter(activeQuickFilter)) {
