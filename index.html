@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#fbfaf6" />
+    <meta name="theme-color" content="#F8F7F2" />
     <meta
       name="description"
       content="A clean mobile-first research paper feed for arXiv, bioRxiv, medRxiv, and PubMed."
@@ -12,18 +12,35 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="assets/icon.svg" />
-    <link rel="stylesheet" href="styles.css?v=38" />
+    <link rel="stylesheet" href="styles.css?v=46" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="top-bar">
-        <div class="brand-lockup">
+      <header class="top-bar" aria-label="PaprFeed navigation">
+        <a class="brand-lockup" href="/" aria-label="PaprFeed home">
           <span class="brand-mark" aria-hidden="true">P</span>
-          <div>
-            <h1>PaprFeed</h1>
-          </div>
-        </div>
+          <span class="brand-name">PaprFeed</span>
+        </a>
+
+        <label class="search-box top-search" for="topicInput">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.8-3.8" />
+          </svg>
+          <span class="search-label">Search</span>
+          <input
+            id="topicInput"
+            name="topic"
+            autocomplete="off"
+            placeholder="Search papers, topics, authors, keywords..."
+          />
+        </label>
+
         <div class="top-actions">
+          <button class="text-button saved-nav-button" id="savedToggle" type="button">
+            Saved
+            <span class="saved-count" id="savedCount" aria-hidden="true">0</span>
+          </button>
           <button class="text-button header-sign-in hidden" id="headerSignInButton" type="button">Sign in</button>
           <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh feed">
             <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -36,101 +53,127 @@
         </div>
       </header>
 
-      <main>
-        <section class="control-panel" aria-label="Feed controls">
-          <div class="source-tabs" role="tablist" aria-label="Sources">
-            <button class="tab active" type="button" data-source="all">All</button>
-            <button class="tab" type="button" data-source="arxiv">arXiv</button>
-            <button class="tab" type="button" data-source="biorxiv">bioRxiv</button>
-            <button class="tab" type="button" data-source="medrxiv">medRxiv</button>
-            <button class="tab" type="button" data-source="pubmed">PubMed</button>
-          </div>
-
-          <label class="search-box" for="topicInput">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-3.8-3.8" />
-            </svg>
-            <span class="search-label">Topic</span>
-            <input
-              id="topicInput"
-              name="topic"
-              autocomplete="off"
-              placeholder="CAR-T, robotics, neuroscience..."
-            />
-          </label>
-
-          <div class="quick-filters" id="quickFilters" aria-label="Quick filters">
-            <button class="filter-chip active" type="button" data-filter="all">All</button>
-            <button class="filter-chip" type="button" data-filter="preprints">Preprints</button>
-            <button class="filter-chip" type="button" data-filter="published">Published</button>
-            <button class="filter-chip" type="button" data-filter="reviews">Reviews</button>
-            <button class="filter-chip" type="button" data-filter="clinical">Clinical trials</button>
-            <button class="filter-chip" type="button" data-filter="free">Free full text</button>
-          </div>
-
-          <div class="filter-row">
-            <label for="categorySelect">
-              <span id="categoryLabel">Focus</span>
-              <select id="categorySelect"></select>
-            </label>
-            <label for="dateSelect">
-              <span>Range</span>
-              <select id="dateSelect">
-                <option value="7">7 days</option>
-                <option value="14">14 days</option>
-                <option value="30" selected>30 days</option>
-                <option value="90">90 days</option>
-              </select>
-            </label>
-            <label for="sortSelect">
-              <span>Sort</span>
-              <select id="sortSelect">
-                <option value="newest" selected>Newest</option>
-                <option value="oldest">Oldest</option>
-                <option value="source">Source</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section class="feed-status" aria-live="polite">
-          <div>
-            <span id="statusLabel">Ready</span>
-            <p id="statusDetail">Choose a source or search a topic.</p>
-          </div>
-          <div class="status-actions">
-            <button class="text-button subtle" id="changeInterestsButton" type="button">Interests</button>
-            <button class="text-button" id="savedToggle" type="button">
-              Saved
-              <span class="saved-count" id="savedCount" aria-hidden="true">0</span>
-            </button>
-          </div>
-        </section>
-
-        <section class="source-counts" id="sourceCounts" aria-label="Loaded source counts"></section>
-
-        <section class="saved-panel hidden" id="savedPanel" aria-label="Saved papers">
-          <div class="panel-heading">
-            <h2>Saved Papers <span class="panel-saved-count" id="panelSavedCount">0</span></h2>
-            <div class="panel-actions">
-              <span class="auth-status hidden" id="authStatus"></span>
-              <button class="text-button" id="signInButton" type="button">Sign in</button>
-              <button class="text-button subtle hidden" id="signOutButton" type="button">Sign out</button>
-              <button class="text-button subtle" id="closeSavedButton" type="button">Close</button>
+      <main class="workspace-shell">
+        <aside class="left-rail" aria-label="Feed filters">
+          <section class="rail-section">
+            <div class="rail-heading">Sources</div>
+            <div class="source-tabs" role="tablist" aria-label="Sources">
+              <button class="tab active" type="button" data-source="all">All sources</button>
+              <button class="tab" type="button" data-source="arxiv">arXiv</button>
+              <button class="tab" type="button" data-source="biorxiv">bioRxiv</button>
+              <button class="tab" type="button" data-source="medrxiv">medRxiv</button>
+              <button class="tab" type="button" data-source="pubmed">PubMed</button>
             </div>
-          </div>
-          <p class="sync-note hidden" id="syncNote"></p>
-          <div id="savedList" class="saved-list"></div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-heading">Paper Type</div>
+            <div class="quick-filters" id="quickFilters" aria-label="Quick filters">
+              <button class="filter-chip active" type="button" data-filter="all">All papers</button>
+              <button class="filter-chip" type="button" data-filter="preprints">Preprints</button>
+              <button class="filter-chip" type="button" data-filter="published">Published</button>
+              <button class="filter-chip" type="button" data-filter="reviews">Reviews</button>
+              <button class="filter-chip" type="button" data-filter="clinical">Clinical trials</button>
+              <button class="filter-chip" type="button" data-filter="free">Free full text</button>
+            </div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-heading">Focus Range</div>
+            <div class="filter-row">
+              <label for="categorySelect">
+                <span id="categoryLabel">Field</span>
+                <select id="categorySelect"></select>
+              </label>
+              <label for="dateSelect">
+                <span>Range</span>
+                <select id="dateSelect">
+                  <option value="7">7 days</option>
+                  <option value="14">14 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </label>
+              <label for="sortSelect">
+                <span>Sort</span>
+                <select id="sortSelect">
+                  <option value="newest" selected>Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="source">Source</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-heading">Topic Interests</div>
+            <button class="text-button rail-button" id="changeInterestsButton" type="button">Edit interests</button>
+          </section>
+        </aside>
+
+        <section class="feed-column" aria-label="Research feed">
+          <section class="hero-panel">
+            <p class="kicker">Research workspace</p>
+            <h1>Your daily paper feed, filtered by <mark>signal</mark>.</h1>
+            <p>
+              Browse papers from arXiv, bioRxiv, medRxiv, PubMed, and selected topic areas in one calm reading queue.
+            </p>
+          </section>
+
+          <section class="feed-status" aria-live="polite">
+            <div>
+              <span id="statusLabel">Ready</span>
+              <p id="statusDetail">Choose a source or search a topic.</p>
+            </div>
+          </section>
+
+          <section class="source-counts" id="sourceCounts" aria-label="Loaded source counts"></section>
+          <section id="paperFeed" class="paper-feed" aria-label="Research papers"></section>
+
+          <p class="load-more-note hidden" id="loadMoreNote"></p>
+          <button class="load-more-button hidden" id="loadMoreButton" type="button">Load more papers</button>
+          <footer class="app-footer">
+            <a href="privacy.html">Privacy</a>
+          </footer>
         </section>
 
-        <section id="paperFeed" class="paper-feed" aria-label="Research papers"></section>
+        <aside class="right-rail" aria-label="Research notes">
+          <section class="saved-panel" id="savedPanel" aria-label="Saved papers">
+            <div class="panel-heading">
+              <h2>Saved Papers <span class="panel-saved-count" id="panelSavedCount">0</span></h2>
+              <div class="panel-actions">
+                <span class="auth-status hidden" id="authStatus"></span>
+                <button class="text-button" id="signInButton" type="button">Sign in</button>
+                <button class="text-button subtle hidden" id="signOutButton" type="button">Sign out</button>
+                <button class="text-button subtle" id="closeSavedButton" type="button">Hide</button>
+              </div>
+            </div>
+            <p class="sync-note hidden" id="syncNote"></p>
+            <div id="savedList" class="saved-list"></div>
+          </section>
 
-        <p class="load-more-note hidden" id="loadMoreNote"></p>
-        <button class="load-more-button hidden" id="loadMoreButton" type="button">Load more</button>
-        <footer class="app-footer">
-          <a href="privacy.html">Privacy</a>
-        </footer>
+          <section class="right-card" aria-label="Recent searches">
+            <div class="panel-heading simple">
+              <h2>Recent Searches</h2>
+            </div>
+            <div class="note-list">
+              <span>CAR-T</span>
+              <span>flow cytometry</span>
+              <span>spatial transcriptomics</span>
+            </div>
+          </section>
+
+          <section class="right-card" aria-label="Suggested topics">
+            <div class="panel-heading simple">
+              <h2>Suggested Topics</h2>
+            </div>
+            <div class="suggested-topics">
+              <button class="suggested-topic-button" type="button" data-topic="single-cell RNA sequencing">Single-cell RNA sequencing</button>
+              <button class="suggested-topic-button" type="button" data-topic="antibody drug conjugate">Antibody drug conjugate</button>
+              <button class="suggested-topic-button" type="button" data-topic="large language model medicine">LLMs in medicine</button>
+            </div>
+          </section>
+        </aside>
       </main>
     </div>
 
@@ -280,6 +323,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=38" type="module"></script>
+    <script src="app.js?v=46" type="module"></script>
   </body>
 </html>

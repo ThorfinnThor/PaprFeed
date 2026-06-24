@@ -47,13 +47,12 @@ const MIX_CHOICES = document.querySelector("#mixChoices");
 const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
-const BROAD_PUBMED_BATCH_SIZE = 60;
-const MIXED_FEED_PUBMED_BATCH_SIZE = 36;
+const FEED_BATCH_SIZE = 8;
 const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:last-feed";
+const cacheKeyPrefix = "paprfeed:v46:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -678,8 +677,8 @@ function updateLoadMoreButton() {
   const countLabel = papers.length === 1 ? "paper" : "papers";
   const nextBatchText = canLoadMore
     ? activeSource === "all"
-      ? "Load more fetches another batch from each active source."
-      : `Load more fetches another ${sourceSettings[activeSource].label} batch.`
+      ? `Load more fetches up to ${FEED_BATCH_SIZE} more papers.`
+      : `Load more fetches up to ${FEED_BATCH_SIZE} more ${sourceSettings[activeSource].label} papers.`
     : "No more papers are available in the current batch.";
   LOAD_MORE_NOTE.textContent = `Showing ${papers.length} ${countLabel}. ${nextBatchText}`;
 }
@@ -826,6 +825,7 @@ function renderFeed() {
     openLink.href = paper.url;
 
     if (isSaved(paper.id)) {
+      node.classList.add("is-saved");
       saveButton.classList.add("saved");
       saveButton.lastChild.textContent = " Saved";
     }
@@ -1119,7 +1119,7 @@ function parseArxiv(xmlText) {
 async function fetchArxiv(options = {}) {
   const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
   const category = options.category ?? CATEGORY_SELECT.value;
-  const maxResults = options.maxResults ?? 20;
+  const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
   const start = options.start ?? sourceOffsets.arxiv ?? 0;
   const categoryTerm = category && category !== "auto" ? `cat:${category}` : "";
   const topicTerm = topic ? arxivTermForTopic(topic) : "";
@@ -1133,7 +1133,7 @@ async function fetchArxiv(options = {}) {
 async function fetchBioRxivLike(source, options = {}) {
   const { start, end } = getDateRange(DATE_SELECT.value);
   const category = cleanText(options.category ?? CATEGORY_SELECT.value);
-  const maxResults = options.maxResults ?? 25;
+  const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
   let cursor = options.cursor ?? sourceOffsets[source] ?? 0;
   const apiSource = source === "medrxiv" ? "medrxiv" : "biorxiv";
   const categoryQuery = category && category !== "auto" ? `?category=${encodeURIComponent(category)}` : "";
@@ -1326,12 +1326,11 @@ async function fetchPubMed(options = {}) {
   const typeFilter = options.typeFilter ?? CATEGORY_SELECT.value;
   const fieldFilter = typeFilter === "all" ? "" : ` AND ${typeFilter}`;
   const days = DATE_SELECT.value;
-  const termCount = significantQueryTerms(topic).length;
-  const maxResults = options.maxResults ?? (termCount <= 1 ? BROAD_PUBMED_BATCH_SIZE : 20);
+  const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
   const start = options.start ?? sourceOffsets.pubmed ?? 0;
   const topicTerm = topic ? pubMedTermForTopic(topic) : "all[sb]";
   const term = encodeURIComponent(`${topicTerm}${fieldFilter}`);
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${maxResults}&sort=pub+date&reldate=${days}&datetype=pdat`;
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${maxResults}&sort=pub+date&reldate=${days}&datetype=edat`;
   const searchResponse = await fetchWithTimeout(searchUrl);
   if (!searchResponse.ok) throw new Error("PubMed search failed");
   const searchData = await searchResponse.json();
@@ -1353,7 +1352,13 @@ function inferredField(topic, selectedField = "auto") {
   if (/\b(genom|gene|crispr|rna|dna|single-cell|transcriptom)\b/.test(text)) return "genomics";
   if (/\b(neurosci\w*|neuro\w*|brain|cognition|neuron\w*|synapse\w*)\b/.test(text)) return "neuroscience";
   if (/\b(epidemiology|public health|population|pandemic|infection|infectious)\b/.test(text)) return "public-health";
-  if (/\b(cell|protein|biology|molecular|microbiome|enzyme)\b/.test(text)) return "biology";
+  if (
+    /\b(cell|protein|biology|molecular|microbiome|enzyme|flow cytometry|cytometry|facs|antibody|assay|western blot|elisa|microscopy|organoid|immunology|immune|lymphocyte|macrophage|t cell|b cell)\b/.test(
+      text,
+    )
+  ) {
+    return "biology";
+  }
   if (/\b(machine learning|deep learning|ai|llm|robot|vision|transformer|neural network)\b/.test(text)) return "ai";
   return "ai";
 }
@@ -1394,30 +1399,39 @@ async function fetchAllSources(options = {}) {
   const defaults = topic
     ? sourceDefaultsForTopic(topic, CATEGORY_SELECT.value)
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
-  const maxResults = options.maxResults ?? 8;
-  const pubMedMaxResults =
-    options.pubMedMaxResults ??
-    (activeQuickFilter === "preprints"
-      ? 0
-      : isPubMedFilter(activeQuickFilter)
-        ? BROAD_PUBMED_BATCH_SIZE
-        : MIXED_FEED_PUBMED_BATCH_SIZE);
+  const batchPlan = options.batchPlan ?? allSourceBatchPlan();
   const tasks = [];
 
   if (!isPubMedFilter(activeQuickFilter)) {
-    tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults, start: sourceOffsets.arxiv, timeoutMs: 2500 }));
-    tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults, cursor: sourceOffsets.biorxiv }));
-    tasks.push(fetchBioRxivLike("medrxiv", { topic, category: defaults.medrxiv, maxResults, cursor: sourceOffsets.medrxiv }));
+    if (batchPlan.arxiv) {
+      tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults: batchPlan.arxiv, start: sourceOffsets.arxiv, timeoutMs: 2500 }));
+    }
+    if (batchPlan.biorxiv) {
+      tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults: batchPlan.biorxiv, cursor: sourceOffsets.biorxiv }));
+    }
+    if (batchPlan.medrxiv) {
+      tasks.push(fetchBioRxivLike("medrxiv", { topic, category: defaults.medrxiv, maxResults: batchPlan.medrxiv, cursor: sourceOffsets.medrxiv }));
+    }
   }
 
-  if (activeQuickFilter !== "preprints") {
-    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults: pubMedMaxResults, start: sourceOffsets.pubmed }));
+  if (batchPlan.pubmed) {
+    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults: batchPlan.pubmed, start: sourceOffsets.pubmed }));
   }
 
   const requests = await Promise.allSettled(tasks);
   const items = requests.flatMap((request) => (request.status === "fulfilled" ? request.value : []));
   if (!items.length) throw new Error("All sources failed");
   return items;
+}
+
+function allSourceBatchPlan() {
+  if (isPubMedFilter(activeQuickFilter)) {
+    return { arxiv: 0, biorxiv: 0, medrxiv: 0, pubmed: FEED_BATCH_SIZE };
+  }
+  if (activeQuickFilter === "preprints") {
+    return { arxiv: 2, biorxiv: 3, medrxiv: 3, pubmed: 0 };
+  }
+  return { arxiv: 2, biorxiv: 2, medrxiv: 2, pubmed: 2 };
 }
 
 async function loadFeed() {
@@ -1563,6 +1577,13 @@ SORT_SELECT.addEventListener("change", () => {
 REFRESH_BUTTON.addEventListener("click", loadFeed);
 LOAD_MORE_BUTTON.addEventListener("click", loadMore);
 CHANGE_INTERESTS_BUTTON.addEventListener("click", showOnboarding);
+
+document.querySelectorAll(".suggested-topic-button").forEach((button) => {
+  button.addEventListener("click", () => {
+    TOPIC_INPUT.value = button.dataset.topic || "";
+    loadFeedFromTopicInput();
+  });
+});
 
 SAVED_TOGGLE.addEventListener("click", () => {
   SAVED_PANEL.classList.toggle("hidden");
