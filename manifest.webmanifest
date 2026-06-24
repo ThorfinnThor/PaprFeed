@@ -4,8 +4,8 @@
   "description": "A clean research paper feed for mobile reading.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#fbfaf6",
-  "theme_color": "#fbfaf6",
+  "background_color": "#F8F7F2",
+  "theme_color": "#F8F7F2",
   "icons": [
     {
       "src": "assets/icon.svg",

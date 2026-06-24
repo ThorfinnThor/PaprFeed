@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#2f6f73"/>
-  <path d="M142 112h184c31 0 56 25 56 56v232H186c-24 0-44-20-44-44V112z" fill="#fffaf0"/>
-  <path d="M186 156h136M186 207h158M186 258h126M186 309h94" stroke="#2f6f73" stroke-width="24" stroke-linecap="round"/>
-  <path d="M130 164h-20c-20 0-36 16-36 36v188c0 31 25 56 56 56h196" fill="none" stroke="#fffaf0" stroke-width="28" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">PaprFeed book icon</title>
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="#FFFFFF"/>
+  <rect x="40" y="40" width="432" height="432" rx="92" fill="none" stroke="#E5E1D8" stroke-width="8"/>
+  <path d="M253 167c-34-36-86-38-126-28v171c43-8 90-6 126 28V167Z" fill="#FFFFFF" stroke="#2F6FED" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M259 167c34-36 86-38 126-28v171c-43-8-90-6-126 28V167Z" fill="#FFFFFF" stroke="#2F6FED" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M256 168v186" stroke="#2F6FED" stroke-width="18" stroke-linecap="round"/>
+  <path d="M257 337l-27 22v-38" fill="#2F6FED"/>
+  <path d="M302 196h52M302 232h52M302 268h42" stroke="#2F6FED" stroke-width="15" stroke-linecap="round"/>
 </svg>

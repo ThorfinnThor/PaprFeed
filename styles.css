@@ -114,20 +114,11 @@ p {
 }
 
 .brand-mark {
-  display: grid;
-  width: 42px;
+  display: block;
+  width: 54px;
   height: 42px;
   flex: 0 0 42px;
-  place-items: center;
-  border: 1px solid rgba(47, 111, 237, 0.28);
-  border-radius: 9px;
-  color: var(--blue);
-  background: #fff;
-  font-family: Newsreader, Georgia, serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: 0 1px 2px rgba(27, 29, 31, 0.04);
+  object-fit: contain;
 }
 
 .brand-name {
@@ -1112,9 +1103,9 @@ mark {
 
 @media (max-width: 430px) {
   .brand-mark {
-    width: 38px;
+    width: 48px;
     height: 38px;
-    flex-basis: 38px;
+    flex-basis: 48px;
   }
 
   .brand-name {

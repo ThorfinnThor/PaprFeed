@@ -1,4 +1,4 @@
-const CACHE_NAME = "paprfeed-v47";
+const CACHE_NAME = "paprfeed-v48";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const APP_FILES = [
   "./privacy.html",
   "./manifest.webmanifest",
   "./assets/icon.svg",
+  "./assets/book-logo.svg",
 ];
 
 self.addEventListener("install", (event) => {
