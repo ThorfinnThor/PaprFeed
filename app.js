@@ -52,7 +52,7 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v46:last-feed";
+const cacheKeyPrefix = "paprfeed:v47:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -501,6 +501,17 @@ function significantQueryTerms(topic) {
 function termVariants(term) {
   const variants = [term];
   if (term.includes("-")) variants.push(term.replace(/-/g, " "));
+  if (/^car-?t$/.test(term)) {
+    variants.push(
+      "car t-cell",
+      "car-t cell",
+      "car t cells",
+      "car-t cells",
+      "chimeric antigen receptor",
+      "chimeric antigen receptor t",
+      "chimeric antigen receptor t-cell",
+    );
+  }
   return [...new Set(variants)];
 }
 
@@ -748,12 +759,11 @@ function selectedFieldLabel() {
 
 function feedDescription(source) {
   const topic = cleanText(TOPIC_INPUT.value);
-  if (!topic && source === "all") return "Newest papers. Field: Auto.";
+  if (!topic && source === "all") return "Newest papers. Field: Any.";
   if (!topic) return `Newest papers. ${sourceSettings[source].categoryLabel}: ${selectedFieldLabel()}.`;
   if (source === "all") {
     const field = CATEGORY_SELECT.value;
-    const inferred = inferredField(topic, field);
-    const fieldText = field === "auto" ? `Auto -> ${fieldLabel(inferred)}` : selectedFieldLabel();
+    const fieldText = field === "auto" ? "Any" : selectedFieldLabel();
     return `Topic: ${topic}. Field: ${fieldText}.`;
   }
   return `Topic: ${topic}. ${sourceSettings[source].categoryLabel}: ${selectedFieldLabel()}.`;
@@ -768,7 +778,7 @@ function fieldLabel(field) {
     genomics: "Genomics",
     "public-health": "Public health",
   };
-  return labels[field] ?? "AI/ML";
+  return labels[field] ?? "Any";
 }
 
 function sortPapers(items) {
@@ -1140,7 +1150,7 @@ async function fetchBioRxivLike(source, options = {}) {
   const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
   const fetchPage = async (pageCursor) => {
     const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${pageCursor}${categoryQuery}`;
-    const response = await fetchWithTimeout(url);
+    const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs ?? 3500 });
     if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
     return response.json();
   };
@@ -1327,20 +1337,35 @@ async function fetchPubMed(options = {}) {
   const fieldFilter = typeFilter === "all" ? "" : ` AND ${typeFilter}`;
   const days = DATE_SELECT.value;
   const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
-  const start = options.start ?? sourceOffsets.pubmed ?? 0;
+  let start = options.start ?? sourceOffsets.pubmed ?? 0;
   const topicTerm = topic ? pubMedTermForTopic(topic) : "all[sb]";
   const term = encodeURIComponent(`${topicTerm}${fieldFilter}`);
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${maxResults}&sort=pub+date&reldate=${days}&datetype=edat`;
-  const searchResponse = await fetchWithTimeout(searchUrl);
-  if (!searchResponse.ok) throw new Error("PubMed search failed");
-  const searchData = await searchResponse.json();
-  const ids = searchData.esearchresult?.idlist ?? [];
-  if (!ids.length) return [];
+  const collected = [];
+  let attempts = 0;
 
-  const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`;
-  const fetchResponse = await fetchWithTimeout(fetchUrl);
-  if (!fetchResponse.ok) throw new Error("PubMed records failed");
-  return filterTopicMatches(parsePubMedArticles(await fetchResponse.text()), topic);
+  while (collected.length < maxResults && attempts < 4) {
+    const requestSize = Math.max(maxResults - collected.length, maxResults);
+    const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${requestSize}&sort=pub+date&reldate=${days}&datetype=edat`;
+    const searchResponse = await fetchWithTimeout(searchUrl);
+    if (!searchResponse.ok) throw new Error("PubMed search failed");
+    const searchData = await searchResponse.json();
+    const ids = searchData.esearchresult?.idlist ?? [];
+    if (!ids.length) break;
+
+    const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`;
+    const fetchResponse = await fetchWithTimeout(fetchUrl);
+    if (!fetchResponse.ok) throw new Error("PubMed records failed");
+    const nextItems = filterTopicMatches(parsePubMedArticles(await fetchResponse.text()), topic);
+    mergeUnique(collected, nextItems).forEach((paper) => {
+      if (collected.length < maxResults && !collected.some((item) => item.id === paper.id)) collected.push(paper);
+    });
+
+    if (ids.length < requestSize) break;
+    start += requestSize;
+    attempts += 1;
+  }
+
+  return collected.slice(0, maxResults);
 }
 
 function inferredField(topic, selectedField = "auto") {
@@ -1396,8 +1421,9 @@ function sourceDefaultsForTopic(topic, selectedField = "auto") {
 
 async function fetchAllSources(options = {}) {
   const topic = cleanText(TOPIC_INPUT.value);
-  const defaults = topic
-    ? sourceDefaultsForTopic(topic, CATEGORY_SELECT.value)
+  const selectedField = CATEGORY_SELECT.value;
+  const defaults = topic && selectedField !== "auto"
+    ? sourceDefaultsForTopic(topic, selectedField)
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
   const batchPlan = options.batchPlan ?? allSourceBatchPlan();
   const tasks = [];
@@ -1419,7 +1445,34 @@ async function fetchAllSources(options = {}) {
   }
 
   const requests = await Promise.allSettled(tasks);
-  const items = requests.flatMap((request) => (request.status === "fulfilled" ? request.value : []));
+  let items = requests.flatMap((request) => (request.status === "fulfilled" ? request.value : []));
+
+  if (batchPlan.pubmed && items.length < FEED_BATCH_SIZE) {
+    let pubmedStart = (sourceOffsets.pubmed ?? 0) + batchPlan.pubmed;
+    let attempts = 0;
+
+    while (items.length < FEED_BATCH_SIZE && attempts < 3) {
+      const needed = FEED_BATCH_SIZE - items.length;
+      let extraPubMed = [];
+
+      try {
+        extraPubMed = await fetchPubMed({
+          topic,
+          typeFilter: pubMedTypeFilter(),
+          maxResults: needed,
+          start: pubmedStart,
+        });
+      } catch {
+        break;
+      }
+
+      if (!extraPubMed.length) break;
+      items = mergeUnique(items, extraPubMed);
+      pubmedStart += needed;
+      attempts += 1;
+    }
+  }
+
   if (!items.length) throw new Error("All sources failed");
   return items;
 }

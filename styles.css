@@ -30,11 +30,15 @@ body {
   min-height: 100%;
   margin: 0;
   color: var(--ink);
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
   background:
     linear-gradient(90deg, transparent 0, transparent calc(50% - 560px), rgba(62, 124, 89, 0.14) calc(50% - 560px), rgba(62, 124, 89, 0.14) calc(50% - 559px), transparent calc(50% - 558px)),
     linear-gradient(90deg, transparent 0, transparent calc(50% + 560px), rgba(62, 124, 89, 0.1) calc(50% + 560px), rgba(62, 124, 89, 0.1) calc(50% + 561px), transparent calc(50% + 562px)),
     repeating-linear-gradient(0deg, rgba(229, 225, 216, 0.28) 0, rgba(229, 225, 216, 0.28) 1px, transparent 1px, transparent 32px),
     var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body.detail-open {
@@ -966,13 +970,18 @@ mark {
   }
 
   .app-shell {
-    padding: max(12px, env(safe-area-inset-top)) 12px 28px;
+    padding: max(10px, env(safe-area-inset-top)) 12px max(28px, env(safe-area-inset-bottom));
   }
 
   .top-bar {
-    position: static;
+    position: sticky;
+    top: 0;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 10px;
+    margin: 0 -12px;
+    padding: 10px 12px 12px;
+    border-bottom: 1px solid rgba(229, 225, 216, 0.78);
+    background: rgba(248, 247, 242, 0.96);
   }
 
   .top-actions {
@@ -985,7 +994,7 @@ mark {
 
   .workspace-shell {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 12px;
     width: 100%;
     overflow: hidden;
   }
@@ -993,10 +1002,25 @@ mark {
   .left-rail,
   .right-rail {
     position: static;
+    gap: 10px;
   }
 
   .right-rail {
     grid-template-columns: 1fr;
+  }
+
+  .right-card {
+    display: none;
+  }
+
+  .rail-section,
+  .saved-panel,
+  .feed-status {
+    padding: 12px;
+  }
+
+  .rail-heading {
+    margin-bottom: 8px;
   }
 
   .source-tabs,
@@ -1026,7 +1050,8 @@ mark {
   }
 
   .hero-panel {
-    padding: 20px 18px;
+    padding: 16px 14px;
+    margin-bottom: 12px;
   }
 
   .hero-panel h1,
@@ -1035,7 +1060,14 @@ mark {
   }
 
   .hero-panel h1 {
-    font-size: clamp(2rem, 12vw, 3.2rem);
+    margin-bottom: 8px;
+    font-size: clamp(1.7rem, 9vw, 2.25rem);
+    line-height: 1.02;
+  }
+
+  .hero-panel p:not(.kicker) {
+    font-size: 0.92rem;
+    line-height: 1.45;
   }
 
   .paper-card {
@@ -1043,7 +1075,12 @@ mark {
   }
 
   .paper-card h2 {
-    font-size: 1.36rem;
+    font-size: 1.24rem;
+  }
+
+  .abstract {
+    font-size: 0.93rem;
+    line-height: 1.58;
   }
 
   .paper-actions {
@@ -1095,7 +1132,7 @@ mark {
 
   .paper-actions button,
   .paper-actions a {
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 9px;
   }
 }
