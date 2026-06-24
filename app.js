@@ -52,7 +52,7 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v48:last-feed";
+const cacheKeyPrefix = "paprfeed:v49:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -1427,10 +1427,11 @@ async function fetchAllSources(options = {}) {
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
   const batchPlan = options.batchPlan ?? allSourceBatchPlan();
   const tasks = [];
+  const candidateLimit = options.candidateLimit ?? FEED_BATCH_SIZE;
 
   if (!isPubMedFilter(activeQuickFilter)) {
     if (batchPlan.arxiv) {
-      tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults: batchPlan.arxiv, start: sourceOffsets.arxiv, timeoutMs: 2500 }));
+      tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults: batchPlan.arxiv, start: sourceOffsets.arxiv, timeoutMs: 3500 }));
     }
     if (batchPlan.biorxiv) {
       tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults: batchPlan.biorxiv, cursor: sourceOffsets.biorxiv }));
@@ -1447,12 +1448,15 @@ async function fetchAllSources(options = {}) {
   const requests = await Promise.allSettled(tasks);
   let items = requests.flatMap((request) => (request.status === "fulfilled" ? request.value : []));
 
-  if (batchPlan.pubmed && items.length < FEED_BATCH_SIZE) {
+  if (batchPlan.arxiv) sourceOffsets.arxiv = (sourceOffsets.arxiv ?? 0) + batchPlan.arxiv;
+  if (batchPlan.pubmed) sourceOffsets.pubmed = (sourceOffsets.pubmed ?? 0) + batchPlan.pubmed;
+
+  if (batchPlan.pubmed && items.length < candidateLimit) {
     let pubmedStart = (sourceOffsets.pubmed ?? 0) + batchPlan.pubmed;
     let attempts = 0;
 
-    while (items.length < FEED_BATCH_SIZE && attempts < 3) {
-      const needed = FEED_BATCH_SIZE - items.length;
+    while (items.length < candidateLimit && attempts < 3) {
+      const needed = candidateLimit - items.length;
       let extraPubMed = [];
 
       try {
@@ -1469,22 +1473,28 @@ async function fetchAllSources(options = {}) {
       if (!extraPubMed.length) break;
       items = mergeUnique(items, extraPubMed);
       pubmedStart += needed;
+      sourceOffsets.pubmed = Math.max(sourceOffsets.pubmed ?? 0, pubmedStart);
       attempts += 1;
     }
   }
 
   if (!items.length) throw new Error("All sources failed");
-  return items;
+  return sortPapers(items).slice(0, FEED_BATCH_SIZE);
 }
 
 function allSourceBatchPlan() {
   if (isPubMedFilter(activeQuickFilter)) {
-    return { arxiv: 0, biorxiv: 0, medrxiv: 0, pubmed: FEED_BATCH_SIZE };
+    return { arxiv: 0, biorxiv: 0, medrxiv: 0, pubmed: FEED_BATCH_SIZE * 3 };
   }
   if (activeQuickFilter === "preprints") {
-    return { arxiv: 2, biorxiv: 3, medrxiv: 3, pubmed: 0 };
+    return { arxiv: FEED_BATCH_SIZE, biorxiv: FEED_BATCH_SIZE, medrxiv: FEED_BATCH_SIZE, pubmed: 0 };
   }
-  return { arxiv: 2, biorxiv: 2, medrxiv: 2, pubmed: 2 };
+  return {
+    arxiv: FEED_BATCH_SIZE,
+    biorxiv: FEED_BATCH_SIZE,
+    medrxiv: FEED_BATCH_SIZE,
+    pubmed: FEED_BATCH_SIZE,
+  };
 }
 
 async function loadFeed() {
@@ -1507,7 +1517,7 @@ async function loadFeed() {
     if (source === "pubmed") nextPapers = await fetchPubMed({ typeFilter: pubMedTypeFilter() });
     if (requestId !== latestRequestId) return;
 
-    updateOffsets(nextPapers);
+    if (source !== "all") updateOffsets(nextPapers);
     papers = sortPapers(removeHidden(nextPapers));
     canLoadMore = nextPapers.length > 0;
 
@@ -1547,7 +1557,7 @@ async function loadMore() {
     if (source === "pubmed") nextPapers = await fetchPubMed({ typeFilter: pubMedTypeFilter() });
     if (requestId !== latestRequestId) return;
 
-    updateOffsets(nextPapers);
+    if (source !== "all") updateOffsets(nextPapers);
     const merged = mergeUnique(papers, removeHidden(nextPapers));
     canLoadMore = nextPapers.length > 0 && merged.length > papers.length;
     papers = sortPapers(merged);
