@@ -52,7 +52,7 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v49:last-feed";
+const cacheKeyPrefix = "paprfeed:v57:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -134,6 +134,7 @@ let onboardingFilter = "all";
 let papers = [];
 let sourceCounts = {};
 let sourceOffsets = {};
+let allSourceOverflow = [];
 let currentDetailPaper = null;
 let canLoadMore = true;
 let isLoadingMore = false;
@@ -451,6 +452,7 @@ function resetPaging() {
     medrxiv: 0,
     pubmed: 0,
   };
+  allSourceOverflow = [];
   canLoadMore = true;
 }
 
@@ -535,10 +537,29 @@ function pubMedTermForTopic(topic) {
   if (!terms.length) return cleanText(topic);
   return terms
     .map((term) => {
-      const variants = termVariants(term).map((variant) => `"${variant}"[Title/Abstract]`);
+      const variants = pubMedTermVariants(term);
       return variants.length > 1 ? `(${variants.join(" OR ")})` : variants[0];
     })
     .join(" AND ");
+}
+
+function pubMedTermVariants(term) {
+  if (/^car-?t$/.test(term)) {
+    return [
+      '"CAR-T"[All Fields]',
+      '"CAR T"[All Fields]',
+      '"CAR-T cells"[All Fields]',
+      '"CAR T cells"[All Fields]',
+      '"chimeric antigen receptor"[Title/Abstract]',
+    ];
+  }
+
+  return termVariants(term).map((variant) => `"${variant}"[Title/Abstract]`);
+}
+
+function isBroadCartTopic(topic) {
+  const terms = queryTerms(topic);
+  return terms.length === 1 && /^car-?t$/.test(terms[0]);
 }
 
 function arxivTermForTopic(topic) {
@@ -1420,14 +1441,22 @@ function sourceDefaultsForTopic(topic, selectedField = "auto") {
 }
 
 async function fetchAllSources(options = {}) {
+  const queued = allSourceOverflow.splice(0, FEED_BATCH_SIZE);
+  if (queued.length === FEED_BATCH_SIZE) return queued;
+
   const topic = cleanText(TOPIC_INPUT.value);
   const selectedField = CATEGORY_SELECT.value;
   const defaults = topic && selectedField !== "auto"
     ? sourceDefaultsForTopic(topic, selectedField)
     : { field: "auto", arxiv: "", biorxiv: "", medrxiv: "" };
-  const batchPlan = options.batchPlan ?? allSourceBatchPlan();
+  const baseBatchPlan = options.batchPlan ?? allSourceBatchPlan();
+  const pubMedTopicDepth = isBroadCartTopic(topic) ? FEED_BATCH_SIZE * 10 : FEED_BATCH_SIZE * 5;
+  const batchPlan =
+    topic && baseBatchPlan.pubmed
+      ? { ...baseBatchPlan, pubmed: Math.max(baseBatchPlan.pubmed, pubMedTopicDepth) }
+      : baseBatchPlan;
   const tasks = [];
-  const candidateLimit = options.candidateLimit ?? FEED_BATCH_SIZE;
+  const candidateLimit = options.candidateLimit ?? Math.max(FEED_BATCH_SIZE, Object.values(batchPlan).reduce((sum, count) => sum + count, 0));
 
   if (!isPubMedFilter(activeQuickFilter)) {
     if (batchPlan.arxiv) {
@@ -1446,13 +1475,26 @@ async function fetchAllSources(options = {}) {
   }
 
   const requests = await Promise.allSettled(tasks);
-  let items = requests.flatMap((request) => (request.status === "fulfilled" ? request.value : []));
+  let items = mergeUnique(queued, requests.flatMap((request) => (request.status === "fulfilled" ? request.value : [])));
+
+  if (batchPlan.pubmed && isBroadCartTopic(topic) && items.length) {
+    for (const targetTopic of ["bcma car-t", "cd19 car-t"]) {
+      try {
+        items = mergeUnique(
+          items,
+          await fetchPubMed({ topic: targetTopic, typeFilter: pubMedTypeFilter(), maxResults: 4, start: 0 }),
+        );
+      } catch {
+        // Target-specific CAR-T expansion is helpful but should never block the broad feed.
+      }
+    }
+  }
 
   if (batchPlan.arxiv) sourceOffsets.arxiv = (sourceOffsets.arxiv ?? 0) + batchPlan.arxiv;
   if (batchPlan.pubmed) sourceOffsets.pubmed = (sourceOffsets.pubmed ?? 0) + batchPlan.pubmed;
 
   if (batchPlan.pubmed && items.length < candidateLimit) {
-    let pubmedStart = (sourceOffsets.pubmed ?? 0) + batchPlan.pubmed;
+    let pubmedStart = sourceOffsets.pubmed ?? batchPlan.pubmed;
     let attempts = 0;
 
     while (items.length < candidateLimit && attempts < 3) {
@@ -1479,7 +1521,9 @@ async function fetchAllSources(options = {}) {
   }
 
   if (!items.length) throw new Error("All sources failed");
-  return sortPapers(items).slice(0, FEED_BATCH_SIZE);
+  const sortedItems = sortPapers(items);
+  allSourceOverflow = mergeUnique(allSourceOverflow, sortedItems.slice(FEED_BATCH_SIZE));
+  return sortedItems.slice(0, FEED_BATCH_SIZE);
 }
 
 function allSourceBatchPlan() {
@@ -1545,6 +1589,7 @@ async function loadMore() {
   const requestId = ++latestRequestId;
   const source = activeSource;
   const label = sourceSettings[source].label;
+  const scrollBeforeLoad = window.scrollY;
   isLoadingMore = true;
   updateLoadMoreButton();
   setStatus("Loading more", `Fetching the next papers from ${label}. ${feedDescription(source)}`);
@@ -1572,6 +1617,8 @@ async function loadMore() {
     if (requestId === latestRequestId) {
       isLoadingMore = false;
       renderFeed();
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      requestAnimationFrame(() => window.scrollTo({ top: scrollBeforeLoad, left: 0, behavior: "auto" }));
     }
   }
 }
