@@ -52,7 +52,7 @@ const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
-const cacheKeyPrefix = "paprfeed:v75:last-feed";
+const cacheKeyPrefix = "paprfeed:v76:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -633,8 +633,8 @@ function isBroadCartTopic(topic) {
 
 function arxivTermForTopic(topic) {
   const terms = queryTerms(topic);
-  if (!terms.length) return `all:${encodeURIComponent(cleanText(topic))}`;
-  return terms.map((term) => `all:${encodeURIComponent(term)}`).join("+AND+");
+  if (!terms.length) return `all:${cleanText(topic)}`;
+  return terms.map((term) => `all:${term}`).join(" AND ");
 }
 
 function searchRelevanceScore(paper, topic) {
@@ -700,6 +700,11 @@ function shiftIsoDate(value, days) {
   const date = dateFromIso(value);
   date.setUTCDate(date.getUTCDate() + days);
   return isoFromDate(date);
+}
+
+function arxivDateRangeTerm() {
+  const { start, end } = getDateRange(DATE_SELECT.value);
+  return `submittedDate:[${start.split("-").join("")}0000+TO+${end.split("-").join("")}2359]`;
 }
 
 function filterBySelectedDateRange(papers) {
@@ -1224,17 +1229,21 @@ function loadCachedFeed(source, topic = TOPIC_INPUT.value) {
 
 function parseArxiv(xmlText) {
   const xml = new DOMParser().parseFromString(xmlText, "application/xml");
-  return [...xml.querySelectorAll("entry")].map((entry) => {
+  return [...xml.querySelectorAll("entry")].flatMap((entry) => {
     const idUrl = cleanText(entry.querySelector("id")?.textContent);
+    const title = cleanText(entry.querySelector("title")?.textContent);
+
+    if (!idUrl || idUrl.includes("/api/errors") || /^error$/i.test(title)) return [];
+
     const pdfLink =
       [...entry.querySelectorAll("link")].find((link) => link.getAttribute("title") === "pdf") ??
       entry.querySelector("link");
 
-    return {
+    return [{
       id: idUrl,
       source: "arxiv",
       sourceLabel: "arXiv",
-      title: cleanText(entry.querySelector("title")?.textContent),
+      title,
       authors: [...entry.querySelectorAll("author name")]
         .slice(0, 5)
         .map((author) => cleanText(author.textContent))
@@ -1242,7 +1251,7 @@ function parseArxiv(xmlText) {
       abstract: cleanText(entry.querySelector("summary")?.textContent),
       date: cleanText(entry.querySelector("published")?.textContent),
       url: pdfLink?.getAttribute("href") ?? idUrl,
-    };
+    }];
   });
 }
 
@@ -1253,8 +1262,15 @@ async function fetchArxiv(options = {}) {
   const start = options.start ?? sourceOffsets.arxiv ?? 0;
   const categoryTerm = category && category !== "auto" ? `cat:${category}` : "";
   const topicTerm = topic ? arxivTermForTopic(topic) : "";
-  const query = [categoryTerm, topicTerm].filter(Boolean).join("+AND+") || "all:*";
-  const url = `https://export.arxiv.org/api/query?search_query=${query}&start=${start}&max_results=${maxResults}&sortBy=submittedDate&sortOrder=descending`;
+  const query = [categoryTerm, topicTerm].filter(Boolean).join(" AND ") || arxivDateRangeTerm();
+  const params = new URLSearchParams({
+    search_query: query,
+    start: String(start),
+    max_results: String(maxResults),
+    sortBy: "submittedDate",
+    sortOrder: "descending",
+  });
+  const url = `https://export.arxiv.org/api/query?${params.toString()}`;
   const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs });
   if (!response.ok) throw new Error("arXiv request failed");
   return filterBySelectedDateRange(filterTopicMatches(parseArxiv(await response.text()), topic));
