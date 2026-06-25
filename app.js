@@ -52,7 +52,7 @@ const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
-const cacheKeyPrefix = "paprfeed:v76:last-feed";
+const cacheKeyPrefix = "paprfeed:v77:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -704,7 +704,7 @@ function shiftIsoDate(value, days) {
 
 function arxivDateRangeTerm() {
   const { start, end } = getDateRange(DATE_SELECT.value);
-  return `submittedDate:[${start.split("-").join("")}0000+TO+${end.split("-").join("")}2359]`;
+  return `submittedDate:[${start.split("-").join("")}0000 TO ${end.split("-").join("")}2359]`;
 }
 
 function filterBySelectedDateRange(papers) {
