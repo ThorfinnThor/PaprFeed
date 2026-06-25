@@ -1005,6 +1005,46 @@ mark {
     overflow: hidden;
   }
 
+  .feed-column {
+    display: contents;
+  }
+
+  .hero-panel {
+    order: 1;
+  }
+
+  .left-rail {
+    order: 2;
+  }
+
+  .feed-status {
+    order: 3;
+  }
+
+  .source-counts {
+    order: 4;
+  }
+
+  .paper-feed {
+    order: 5;
+  }
+
+  .load-more-note {
+    order: 6;
+  }
+
+  .load-more-button {
+    order: 7;
+  }
+
+  .app-footer {
+    order: 8;
+  }
+
+  .right-rail {
+    order: 9;
+  }
+
   .left-rail,
   .right-rail {
     position: static;
@@ -1060,9 +1100,13 @@ mark {
     margin-bottom: 12px;
   }
 
+  .hero-panel::before {
+    display: none;
+  }
+
   .hero-panel h1,
   .hero-panel p:not(.kicker) {
-    padding-left: 10px;
+    padding-left: 0;
   }
 
   .hero-panel h1 {
