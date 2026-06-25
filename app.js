@@ -48,13 +48,14 @@ const legacySavedKey = "paperscroll:saved";
 const legacyHiddenKey = "paperscroll:hidden";
 const legacyOnboardingKey = "paperscroll:onboarding";
 const FEED_BATCH_SIZE = 8;
+const LONG_RANGE_SOURCE_TIMEOUT_MS = 5500;
 const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v78:last-feed";
+const cacheKeyPrefix = "paprfeed:v79:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -1360,7 +1361,13 @@ async function fetchBioRxivLike(source, options = {}) {
   const collected = [];
   const targetCount = skip + maxResults;
   const newestFirst = SORT_SELECT.value !== "oldest";
-  const windowDays = newestFirst ? 1 : source === "biorxiv" ? 7 : 14;
+  const windowDays = newestFirst
+    ? selectedDays > 7
+      ? topic
+        ? 7
+        : 3
+      : 1
+    : source === "biorxiv" ? 7 : 14;
   let windowStart = newestFirst ? shiftIsoDate(end, -(windowDays - 1)) : start;
   let windowEnd = newestFirst ? end : shiftIsoDate(start, windowDays - 1);
   let searchedWindows = 0;
@@ -1640,14 +1647,14 @@ async function fetchPubMed(options = {}) {
   while (collected.length < maxResults && attempts < 4) {
     const requestSize = Math.max(maxResults - collected.length, maxResults);
     const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${term}&retmode=json&retstart=${start}&retmax=${requestSize}&sort=pub+date&reldate=${days}&datetype=edat`;
-    const searchResponse = await fetchWithTimeout(searchUrl);
+    const searchResponse = await fetchWithTimeout(searchUrl, { timeoutMs: options.timeoutMs });
     if (!searchResponse.ok) throw new Error("PubMed search failed");
     const searchData = await searchResponse.json();
     const ids = searchData.esearchresult?.idlist ?? [];
     if (!ids.length) break;
 
     const fetchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=${ids.join(",")}&retmode=xml`;
-    const fetchResponse = await fetchWithTimeout(fetchUrl);
+    const fetchResponse = await fetchWithTimeout(fetchUrl, { timeoutMs: options.timeoutMs });
     if (!fetchResponse.ok) throw new Error("PubMed records failed");
     const nextItems = filterTopicMatches(parsePubMedArticles(await fetchResponse.text()), topic);
     mergeUnique(collected, nextItems).forEach((paper) => {
@@ -1718,6 +1725,8 @@ async function fetchAllSources(options = {}) {
   if (queued.length === FEED_BATCH_SIZE) return queued;
 
   const topic = cleanText(TOPIC_INPUT.value);
+  const selectedDays = Number(DATE_SELECT.value) || 7;
+  const sourceTimeoutMs = selectedDays > 7 ? LONG_RANGE_SOURCE_TIMEOUT_MS : undefined;
   const selectedField = CATEGORY_SELECT.value;
   const defaults = topic && selectedField !== "auto"
     ? sourceDefaultsForTopic(topic, selectedField)
@@ -1736,15 +1745,15 @@ async function fetchAllSources(options = {}) {
       tasks.push(fetchArxiv({ topic, category: defaults.arxiv, maxResults: batchPlan.arxiv, start: sourceOffsets.arxiv, timeoutMs: 3500 }));
     }
     if (batchPlan.biorxiv) {
-      tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults: batchPlan.biorxiv, cursor: sourceOffsets.biorxiv }));
+      tasks.push(fetchBioRxivLike("biorxiv", { topic, category: defaults.biorxiv, maxResults: batchPlan.biorxiv, cursor: sourceOffsets.biorxiv, timeoutMs: sourceTimeoutMs }));
     }
     if (batchPlan.medrxiv) {
-      tasks.push(fetchBioRxivLike("medrxiv", { topic, category: defaults.medrxiv, maxResults: batchPlan.medrxiv, cursor: sourceOffsets.medrxiv }));
+      tasks.push(fetchBioRxivLike("medrxiv", { topic, category: defaults.medrxiv, maxResults: batchPlan.medrxiv, cursor: sourceOffsets.medrxiv, timeoutMs: sourceTimeoutMs }));
     }
   }
 
   if (batchPlan.pubmed) {
-    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults: batchPlan.pubmed, start: sourceOffsets.pubmed }));
+    tasks.push(fetchPubMed({ topic, typeFilter: pubMedTypeFilter(), maxResults: batchPlan.pubmed, start: sourceOffsets.pubmed, timeoutMs: sourceTimeoutMs }));
   }
 
   const requests = await Promise.allSettled(tasks);
