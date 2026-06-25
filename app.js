@@ -51,7 +51,8 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v67:last-feed";
+const controlsKey = "paprfeed:controls";
+const cacheKeyPrefix = "paprfeed:v69:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -80,6 +81,7 @@ const sourceSettings = {
     defaultTopic: "machine learning",
     categoryLabel: "Field",
     categories: [
+      ["auto", "All fields"],
       ["cs.LG", "Machine Learning"],
       ["cs.AI", "Artificial Intelligence"],
       ["cs.CV", "Computer Vision"],
@@ -200,6 +202,29 @@ function setOnboarding(settings) {
   localStorage.setItem(onboardingKey, JSON.stringify(settings));
 }
 
+function getSavedControls() {
+  try {
+    return JSON.parse(localStorage.getItem(controlsKey));
+  } catch {
+    return null;
+  }
+}
+
+function setSavedControls(settings = currentFeedSettings()) {
+  localStorage.setItem(controlsKey, JSON.stringify({ ...settings, version: 1, savedAt: new Date().toISOString() }));
+}
+
+function currentFeedSettings() {
+  return {
+    source: activeSource,
+    topic: cleanText(TOPIC_INPUT.value),
+    field: CATEGORY_SELECT.value || "auto",
+    filter: activeQuickFilter,
+    range: DATE_SELECT.value || "7",
+    sort: SORT_SELECT.value || "newest",
+  };
+}
+
 function isSaved(id) {
   return getSaved().some((paper) => paper.id === id);
 }
@@ -226,6 +251,27 @@ function removeSavedPaper(paper) {
   renderSaved();
   updateDetailSaveButton();
   setStatus("Removed from saved", paper.title);
+}
+
+function openSavedPanel() {
+  SAVED_PANEL.classList.remove("hidden");
+  SAVED_TOGGLE.setAttribute("aria-expanded", "true");
+  document.body.classList.add("saved-open");
+  renderSaved();
+}
+
+function closeSavedPanel() {
+  SAVED_PANEL.classList.add("hidden");
+  SAVED_TOGGLE.setAttribute("aria-expanded", "false");
+  document.body.classList.remove("saved-open");
+}
+
+function toggleSavedPanel() {
+  if (SAVED_PANEL.classList.contains("hidden")) {
+    openSavedPanel();
+    return;
+  }
+  closeSavedPanel();
 }
 
 function hidePaper(paper) {
@@ -271,17 +317,36 @@ function selectChoice(container, button) {
   });
 }
 
-function applyOnboardingSettings(settings) {
-  activateSource("all");
-  setCategories("all");
+function setSelectValue(select, value, fallback) {
+  const nextValue = [...select.options].some((option) => option.value === value) ? value : fallback;
+  select.value = nextValue;
+}
+
+function applyFeedSettings(settings = latestFeedSettings()) {
+  const source = sourceSettings[settings.source] ? settings.source : "all";
+  activateSource(source);
+  setCategories(source);
   setActiveQuickFilter(settings.filter ?? "all");
-  TOPIC_INPUT.value = settings.mode === "latest" ? "" : (settings.topic ?? sourceSettings.all.defaultTopic);
-  CATEGORY_SELECT.value = settings.field ?? "auto";
+  TOPIC_INPUT.value = settings.mode === "latest" ? "" : cleanText(settings.topic ?? "");
+  setSelectValue(CATEGORY_SELECT, settings.field ?? "auto", CATEGORY_SELECT.options[0]?.value ?? "auto");
+  setSelectValue(DATE_SELECT, settings.range ?? "7", "7");
   SORT_SELECT.value = settings.sort ?? "newest";
 }
 
+function applyOnboardingSettings(settings) {
+  applyFeedSettings({
+    source: "all",
+    topic: settings.topic,
+    field: settings.field ?? "auto",
+    filter: settings.filter ?? "all",
+    mode: settings.mode,
+    range: settings.range ?? "7",
+    sort: settings.sort ?? "newest",
+  });
+}
+
 function latestFeedSettings() {
-  return { topic: "", field: "auto", filter: "all", mode: "latest", sort: "newest" };
+  return { source: "all", topic: "", field: "auto", filter: "all", mode: "latest", range: "7", sort: "newest" };
 }
 
 function completeOnboarding(settings) {
@@ -1113,7 +1178,7 @@ function feedCacheKey(source, topic = TOPIC_INPUT.value) {
     activeQuickFilter,
     cleanText(topic) || "latest",
     CATEGORY_SELECT.value || "auto",
-    DATE_SELECT.value || "30",
+    DATE_SELECT.value || "7",
   ].join(":");
 }
 
@@ -1179,7 +1244,7 @@ async function fetchArxiv(options = {}) {
 }
 
 async function fetchBioRxivLike(source, options = {}) {
-  const selectedDays = Number(DATE_SELECT.value) || 30;
+  const selectedDays = Number(DATE_SELECT.value) || 7;
   const { start, end } = getDateRange(selectedDays);
   const selectedCategory = cleanText(options.category ?? CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
@@ -1754,7 +1819,8 @@ function switchSource(source) {
   if (["arxiv", "biorxiv", "medrxiv"].includes(source) && isPubMedFilter(activeQuickFilter)) setActiveQuickFilter("all");
   activateSource(source);
   setCategories(source);
-  TOPIC_INPUT.value = sourceSettings[source].defaultTopic;
+  setSelectValue(CATEGORY_SELECT, "auto", CATEGORY_SELECT.options[0]?.value ?? "auto");
+  setSavedControls();
   loadFeed();
 }
 
@@ -1764,15 +1830,14 @@ function applyQuickFilter(filter) {
   if (filter === "preprints" && activeSource === "pubmed") {
     activateSource("all");
     setCategories("all");
-    TOPIC_INPUT.value = sourceSettings.all.defaultTopic;
   }
 
   if (isPubMedFilter(filter) && !["all", "pubmed"].includes(activeSource)) {
     activateSource("all");
     setCategories("all");
-    TOPIC_INPUT.value = sourceSettings.all.defaultTopic;
   }
 
+  setSavedControls();
   loadFeed();
 }
 
@@ -1790,6 +1855,7 @@ function loadFeedFromTopicInput() {
     setStatus("Keep typing", "Add a little more detail before searching.");
     return;
   }
+  setSavedControls();
   loadFeed();
 }
 
@@ -1803,10 +1869,15 @@ QUICK_FILTERS.querySelectorAll(".filter-chip").forEach((button) => {
 
 TOPIC_INPUT.addEventListener("input", debounce(loadFeedFromTopicInput, 900));
 CATEGORY_SELECT.addEventListener("change", () => {
+  setSavedControls();
   loadFeed();
 });
-DATE_SELECT.addEventListener("change", loadFeed);
+DATE_SELECT.addEventListener("change", () => {
+  setSavedControls();
+  loadFeed();
+});
 SORT_SELECT.addEventListener("change", () => {
+  setSavedControls();
   papers = sortPapers(papers);
   renderFeed();
 });
@@ -1816,17 +1887,17 @@ LOAD_MORE_BUTTON.addEventListener("click", loadMore);
 document.querySelectorAll(".suggested-topic-button").forEach((button) => {
   button.addEventListener("click", () => {
     TOPIC_INPUT.value = button.dataset.topic || "";
+    setSavedControls();
     loadFeedFromTopicInput();
   });
 });
 
 SAVED_TOGGLE.addEventListener("click", () => {
-  SAVED_PANEL.classList.toggle("hidden");
-  renderSaved();
+  toggleSavedPanel();
 });
 
 CLOSE_SAVED_BUTTON.addEventListener("click", () => {
-  SAVED_PANEL.classList.add("hidden");
+  closeSavedPanel();
 });
 
 SIGN_IN_BUTTON.addEventListener("click", signInWithGoogle);
@@ -1885,6 +1956,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (event.key === "Escape" && !DETAIL_PANEL.classList.contains("hidden")) closeDetail();
+  if (event.key === "Escape" && !SAVED_PANEL.classList.contains("hidden")) closeSavedPanel();
 });
 
 if ("serviceWorker" in navigator) {
@@ -1896,9 +1968,14 @@ setCategories(activeSource);
 renderSaved();
 initAuth();
 const onboarding = getOnboarding();
-if (onboarding?.completed && onboarding.version === ONBOARDING_VERSION) {
-  applyOnboardingSettings(onboarding);
+const savedControls = getSavedControls();
+if (savedControls?.version === 1) {
+  applyFeedSettings(savedControls);
+  loadFeed();
+} else if (onboarding?.completed) {
+  applyFeedSettings(latestFeedSettings());
   loadFeed();
 } else {
+  DATE_SELECT.value = "7";
   showOnboarding();
 }
