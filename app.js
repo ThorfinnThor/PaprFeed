@@ -51,7 +51,7 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v59:last-feed";
+const cacheKeyPrefix = "paprfeed:v67:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -92,6 +92,7 @@ const sourceSettings = {
     defaultTopic: "genomics",
     categoryLabel: "Field",
     categories: [
+      ["auto", "All fields"],
       ["bioinformatics", "Bioinformatics"],
       ["genomics", "Genomics"],
       ["neuroscience", "Neuroscience"],
@@ -104,6 +105,7 @@ const sourceSettings = {
     defaultTopic: "clinical research",
     categoryLabel: "Field",
     categories: [
+      ["auto", "All fields"],
       ["epidemiology", "Epidemiology"],
       ["cardiovascular medicine", "Cardiovascular"],
       ["public and global health", "Public Health"],
@@ -517,7 +519,9 @@ function termVariants(term) {
 }
 
 function searchablePaperText(paper) {
-  return normalizeSearchText([paper.title, paper.abstract, paper.journal, paper.authors, paper.sourceLabel].join(" "));
+  return normalizeSearchText(
+    [paper.title, paper.abstract, paper.journal, paper.authors, paper.sourceLabel, paper.category, paper.searchTerms].join(" "),
+  );
 }
 
 function paperMatchesTopic(paper, topic) {
@@ -616,6 +620,20 @@ function getDateRange(days) {
     start: start.toISOString().slice(0, 10),
     end: end.toISOString().slice(0, 10),
   };
+}
+
+function isoFromDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function dateFromIso(value) {
+  return new Date(`${value}T00:00:00Z`);
+}
+
+function shiftIsoDate(value, days) {
+  const date = dateFromIso(value);
+  date.setUTCDate(date.getUTCDate() + days);
+  return isoFromDate(date);
 }
 
 function filterBySelectedDateRange(papers) {
@@ -1161,16 +1179,19 @@ async function fetchArxiv(options = {}) {
 }
 
 async function fetchBioRxivLike(source, options = {}) {
-  const { start, end } = getDateRange(DATE_SELECT.value);
-  const category = cleanText(options.category ?? CATEGORY_SELECT.value);
+  const selectedDays = Number(DATE_SELECT.value) || 30;
+  const { start, end } = getDateRange(selectedDays);
+  const selectedCategory = cleanText(options.category ?? CATEGORY_SELECT.value);
   const maxResults = options.maxResults ?? FEED_BATCH_SIZE;
-  let cursor = options.cursor ?? sourceOffsets[source] ?? 0;
+  const skip = options.cursor ?? sourceOffsets[source] ?? 0;
   const apiSource = source === "medrxiv" ? "medrxiv" : "biorxiv";
-  const categoryQuery = category && category !== "auto" ? `?category=${encodeURIComponent(category)}` : "";
   const topic = cleanText(options.topic ?? TOPIC_INPUT.value);
-  const fetchPage = async (pageCursor) => {
-    const url = `https://api.biorxiv.org/details/${apiSource}/${start}/${end}/${pageCursor}${categoryQuery}`;
-    const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs ?? 3500 });
+  const category = selectedCategory && selectedCategory !== "auto" ? selectedCategory : "";
+  const categoryQuery = category ? `?category=${encodeURIComponent(category)}` : "";
+  let useCategoryQuery = Boolean(categoryQuery);
+  const fetchPage = async (windowStart, windowEnd, pageCursor = 0) => {
+    const url = `https://api.biorxiv.org/details/${apiSource}/${windowStart}/${windowEnd}/${pageCursor}${useCategoryQuery ? categoryQuery : ""}`;
+    const response = await fetchWithTimeout(url, { timeoutMs: options.timeoutMs ?? 12000 });
     if (!response.ok) throw new Error(`${sourceSettings[source].label} request failed`);
     return response.json();
   };
@@ -1182,38 +1203,144 @@ async function fetchBioRxivLike(source, options = {}) {
       title: cleanText(paper.title),
       authors: cleanText(paper.authors),
       journal: source === "medrxiv" ? "medRxiv preprint" : "bioRxiv preprint",
+      category: cleanText(paper.category),
+      searchTerms: sourceCategorySearchTerms(source, cleanText(paper.category)),
       abstract: cleanText(paper.abstract),
       date: paper.date,
       url: `https://doi.org/${paper.doi}`,
     }));
 
-  let data = await fetchPage(cursor);
-  const pageSize = Number(data.messages?.[0]?.count) || maxResults || 30;
-
-  if (SORT_SELECT.value === "newest" && cursor === 0) {
-    const total = Number(data.messages?.[0]?.total) || 0;
-    const newestCursor = Math.max(0, total - pageSize);
-    if (newestCursor > 0) {
-      cursor = newestCursor;
-      data = await fetchPage(cursor);
-    }
-  }
-
   const collected = [];
-  let pageCursor = cursor;
-  const maxPages = topic ? 4 : 1;
+  const targetCount = skip + maxResults;
+  const newestFirst = SORT_SELECT.value !== "oldest";
+  const windowDays = newestFirst ? 1 : source === "biorxiv" ? 7 : 14;
+  let windowStart = newestFirst ? shiftIsoDate(end, -(windowDays - 1)) : start;
+  let windowEnd = newestFirst ? end : shiftIsoDate(start, windowDays - 1);
+  let searchedWindows = 0;
+  const maxWindows = Math.min(Math.ceil(selectedDays / windowDays) + 1, topic ? 30 : 14);
+  let succeededAtLeastOnce = false;
 
-  for (let page = 0; page < maxPages; page += 1) {
-    collected.push(...filterTopicMatches(normalizePapers(data), topic));
-    if (collected.length >= maxResults || SORT_SELECT.value !== "newest" || pageCursor <= 0) break;
-    pageCursor = Math.max(0, pageCursor - pageSize);
-    data = await fetchPage(pageCursor);
+  while (searchedWindows < maxWindows && collected.length < targetCount) {
+    if (newestFirst) {
+      if (dateValue(windowStart) < dateValue(start)) windowStart = start;
+    } else if (dateValue(windowEnd) > dateValue(end)) {
+      windowEnd = end;
+    }
+
+    let pageCursor = 0;
+    let fetchedAnyPage = false;
+
+    while (collected.length < targetCount && pageCursor <= 90) {
+      let data;
+      try {
+        data = await fetchPage(windowStart, windowEnd, pageCursor);
+      } catch (error) {
+        if (!useCategoryQuery) {
+          break;
+        }
+        useCategoryQuery = false;
+        try {
+          data = await fetchPage(windowStart, windowEnd, pageCursor);
+        } catch {
+          break;
+        }
+      }
+
+      fetchedAnyPage = true;
+      succeededAtLeastOnce = true;
+      const count = Number(data.messages?.[0]?.count) || 0;
+      const nextItems = filterTopicMatches(normalizePapers(data), topic);
+      const merged = mergeUnique(collected, nextItems);
+      collected.splice(0, collected.length, ...merged);
+
+      if (!count || count < 30) break;
+      pageCursor += count;
+    }
+
+    if (newestFirst) {
+      windowEnd = shiftIsoDate(windowStart, -1);
+      windowStart = shiftIsoDate(windowEnd, -(windowDays - 1));
+      if (dateValue(windowEnd) < dateValue(start)) break;
+    } else {
+      windowStart = shiftIsoDate(windowEnd, 1);
+      windowEnd = shiftIsoDate(windowStart, windowDays - 1);
+      if (dateValue(windowStart) > dateValue(end)) break;
+    }
+
+    searchedWindows += 1;
   }
 
-  sourceOffsets[source] =
-    SORT_SELECT.value === "newest" ? Math.max(0, pageCursor - pageSize) : cursor + Number(data.messages?.[0]?.count ?? pageSize);
+  if (!succeededAtLeastOnce) throw new Error(`${sourceSettings[source].label} request failed`);
 
-  return collected.slice(0, maxResults);
+  const sorted = sortPapers(filterBySelectedDateRange(collected));
+  const batch = sorted.slice(skip, skip + maxResults);
+  sourceOffsets[source] = skip + batch.length;
+
+  return batch;
+}
+
+function sourceCategoryForTopic(source, topic) {
+  const text = normalizeSearchText(topic);
+  if (!text) return "";
+
+  const aliases = {
+    biorxiv: {
+      "artificial intelligence": "bioinformatics",
+      bioinformatics: "bioinformatics",
+      biology: "cell_biology",
+      cell: "cell_biology",
+      genomics: "genomics",
+      immunology: "immunology",
+      neuroscience: "neuroscience",
+      neuro: "neuroscience",
+    },
+    medrxiv: {
+      cardiovascular: "cardiovascular medicine",
+      cardiology: "cardiovascular medicine",
+      epidemiology: "epidemiology",
+      infection: "infectious diseases",
+      infectious: "infectious diseases",
+      neurology: "neurology",
+      neuroscience: "neurology",
+      public: "public and global health",
+      "public health": "public and global health",
+    },
+  };
+
+  const directAlias = aliases[source]?.[text];
+  if (directAlias) return directAlias;
+
+  const categories = sourceSettings[source]?.categories ?? [];
+  const match = categories.find(([value, label]) => {
+    if (value === "auto") return false;
+    const normalizedValue = normalizeSearchText(value);
+    const normalizedLabel = normalizeSearchText(label);
+    return text === normalizedValue || text === normalizedLabel || normalizedLabel.includes(text);
+  });
+
+  return match?.[0] ?? "";
+}
+
+function sourceCategorySearchTerms(source, category) {
+  const normalized = normalizeSearchText(category);
+  const extras = {
+    biorxiv: {
+      bioinformatics: "bioinformatics artificial intelligence computational biology",
+      cell_biology: "cell biology biology",
+      genomics: "genomics genetics genome",
+      immunology: "immunology immune",
+      neuroscience: "neuroscience neurology neuro brain cognition",
+    },
+    medrxiv: {
+      "cardiovascular medicine": "cardiovascular cardiology heart",
+      epidemiology: "epidemiology population public health",
+      "infectious diseases": "infectious infection disease",
+      neurology: "neurology neuroscience neuro brain",
+      "public and global health": "public health global health population",
+    },
+  };
+
+  return extras[source]?.[normalized] ?? category;
 }
 
 function parsePubMedMonth(value) {
