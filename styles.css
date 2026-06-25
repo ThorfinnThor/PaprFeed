@@ -1216,6 +1216,7 @@ mark {
 
   .saved-remove-button {
     position: absolute;
+    z-index: 0;
     inset: 0 0 0 auto;
     width: 88px;
     min-width: 88px;
@@ -1224,6 +1225,10 @@ mark {
     padding: 0;
     border: 0;
     border-radius: 0;
+  }
+
+  .saved-item {
+    z-index: 1;
   }
 
   .saved-remove-button svg {
