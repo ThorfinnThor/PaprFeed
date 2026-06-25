@@ -41,8 +41,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-body.detail-open,
-body.saved-open {
+body.detail-open {
   overflow: hidden;
 }
 
@@ -224,6 +223,9 @@ p {
 }
 
 .saved-panel {
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #fff;
 }
 
@@ -999,6 +1001,10 @@ mark {
 }
 
 @media (max-width: 820px) {
+  body.saved-open {
+    overflow: hidden;
+  }
+
   body.saved-open::before {
     content: "";
     position: fixed;

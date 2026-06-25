@@ -1,4 +1,4 @@
-const CACHE_NAME = "paprfeed-v71";
+const CACHE_NAME = "paprfeed-v72";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -7,7 +7,7 @@ const APP_FILES = [
   "./supabase-config.js",
   "./privacy.html",
   "./manifest.webmanifest",
-  "./assets/icon.svg?v=71",
+  "./assets/icon.svg?v=72",
   "./assets/book-logo.svg",
 ];
 
