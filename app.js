@@ -12,7 +12,6 @@ const REFRESH_BUTTON = document.querySelector("#refreshButton");
 const SOURCE_COUNTS = document.querySelector("#sourceCounts");
 const LOAD_MORE_BUTTON = document.querySelector("#loadMoreButton");
 const LOAD_MORE_NOTE = document.querySelector("#loadMoreNote");
-const CHANGE_INTERESTS_BUTTON = document.querySelector("#changeInterestsButton");
 const SAVED_TOGGLE = document.querySelector("#savedToggle");
 const SAVED_COUNT = document.querySelector("#savedCount");
 const SAVED_PANEL = document.querySelector("#savedPanel");
@@ -52,7 +51,7 @@ const ONBOARDING_VERSION = 3;
 const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
-const cacheKeyPrefix = "paprfeed:v57:last-feed";
+const cacheKeyPrefix = "paprfeed:v58:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -1686,7 +1685,6 @@ SORT_SELECT.addEventListener("change", () => {
 });
 REFRESH_BUTTON.addEventListener("click", loadFeed);
 LOAD_MORE_BUTTON.addEventListener("click", loadMore);
-CHANGE_INTERESTS_BUTTON.addEventListener("click", showOnboarding);
 
 document.querySelectorAll(".suggested-topic-button").forEach((button) => {
   button.addEventListener("click", () => {
