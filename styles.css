@@ -1226,6 +1226,10 @@ mark {
     border-radius: 0;
   }
 
+  .saved-remove-button svg {
+    display: none;
+  }
+
   .saved-remove-button span {
     position: static;
     width: auto;
