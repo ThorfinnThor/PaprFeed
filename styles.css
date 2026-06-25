@@ -772,9 +772,7 @@ mark {
 
 .saved-item-shell {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px;
-  gap: 6px;
+  display: block;
   overflow: visible;
   border-radius: 9px;
   background: transparent;
@@ -783,7 +781,7 @@ mark {
 .saved-item {
   position: relative;
   z-index: 1;
-  padding: 11px;
+  padding: 11px 42px 11px 11px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: #fff;
@@ -812,20 +810,42 @@ mark {
 }
 
 .saved-remove-button {
-  position: static;
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  right: 9px;
   display: flex;
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
-  align-self: start;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid #f2c6bc;
-  border-radius: 9px;
-  color: #7c1f1f;
-  background: #ffe5df;
+  border: 1px solid rgba(229, 225, 216, 0.85);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(248, 247, 242, 0.72);
   font-size: 0.78rem;
+  opacity: 0.68;
+}
+
+.saved-item-shell:hover .saved-remove-button,
+.saved-item-shell:focus-within .saved-remove-button {
+  opacity: 1;
+}
+
+.saved-remove-button:hover,
+.saved-remove-button:focus-visible {
+  border-color: #f2c6bc;
+  color: #9a3a32;
+  background: #fff1ec;
+  opacity: 1;
+}
+
+.saved-remove-button svg {
+  width: 15px;
+  height: 15px;
 }
 
 .saved-remove-button span {
