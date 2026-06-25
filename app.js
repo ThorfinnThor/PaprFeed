@@ -55,7 +55,7 @@ const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v79:last-feed";
+const cacheKeyPrefix = "paprfeed:v80:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -1361,13 +1361,7 @@ async function fetchBioRxivLike(source, options = {}) {
   const collected = [];
   const targetCount = skip + maxResults;
   const newestFirst = SORT_SELECT.value !== "oldest";
-  const windowDays = newestFirst
-    ? selectedDays > 7
-      ? topic
-        ? 7
-        : 3
-      : 1
-    : source === "biorxiv" ? 7 : 14;
+  const windowDays = newestFirst ? 1 : source === "biorxiv" ? 7 : 14;
   let windowStart = newestFirst ? shiftIsoDate(end, -(windowDays - 1)) : start;
   let windowEnd = newestFirst ? end : shiftIsoDate(start, windowDays - 1);
   let searchedWindows = 0;
