@@ -52,7 +52,8 @@ const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
-const cacheKeyPrefix = "paprfeed:v74:last-feed";
+const cacheKeyPrefix = "paprfeed:v75:last-feed";
+const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
@@ -713,28 +714,44 @@ function filterBySelectedDateRange(papers) {
 }
 
 async function fetchWithTimeout(url, options = {}) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? 7000);
-  const requestUrl = proxiedUrl(url);
+  const { timeoutMs = 7000, ...fetchOptions } = options;
+  const requestUrls = proxiedUrls(url);
+  let lastError;
 
-  try {
-    return await fetch(requestUrl, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
+  for (let index = 0; index < requestUrls.length; index += 1) {
+    const requestUrl = requestUrls[index];
+    const isLastRequestUrl = index === requestUrls.length - 1;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(requestUrl, {
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+
+      if (response.ok || isLastRequestUrl) return response;
+      lastError = new Error(`Request failed with ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      if (isLastRequestUrl) throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
+
+  throw lastError ?? new Error("Request failed");
 }
 
-function proxiedUrl(url) {
+function proxiedUrls(url) {
   const isLocal =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.protocol === "file:";
+  const proxyPath = `/api/proxy?url=${encodeURIComponent(url)}`;
 
-  if (isLocal) return url;
-  return `/api/proxy?url=${encodeURIComponent(url)}`;
+  if (isLocal) return [url, `${localFallbackProxyOrigin}${proxyPath}`];
+  return [proxyPath, url];
 }
 
 function mergeUnique(existing, incoming) {
