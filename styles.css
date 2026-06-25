@@ -223,6 +223,10 @@ p {
   overflow: hidden;
 }
 
+.saved-panel {
+  background: #fff;
+}
+
 .rail-heading {
   margin-bottom: 11px;
   color: var(--muted);
@@ -769,8 +773,8 @@ mark {
 .saved-item-shell {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 6px;
   overflow: visible;
   border-radius: 9px;
   background: transparent;
@@ -810,17 +814,27 @@ mark {
 .saved-remove-button {
   position: static;
   display: flex;
-  width: auto;
-  min-width: 42px;
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  align-self: start;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 10px;
+  padding: 0;
   border: 1px solid #f2c6bc;
   border-radius: 9px;
   color: #7c1f1f;
   background: #ffe5df;
   font-size: 0.78rem;
+}
+
+.saved-remove-button span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .saved-item-shell.swipe-open .saved-item {
@@ -965,6 +979,15 @@ mark {
 }
 
 @media (max-width: 820px) {
+  body.saved-open::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    pointer-events: none;
+    background: rgba(248, 247, 242, 0.92);
+  }
+
   body {
     background:
       repeating-linear-gradient(0deg, rgba(229, 225, 216, 0.28) 0, rgba(229, 225, 216, 0.28) 1px, transparent 1px, transparent 32px),
@@ -1067,11 +1090,13 @@ mark {
   .saved-panel {
     position: fixed;
     z-index: 80;
+    top: max(82px, env(safe-area-inset-top));
     right: 12px;
     bottom: max(12px, env(safe-area-inset-bottom));
     left: 12px;
-    max-height: min(74vh, 620px);
+    max-height: none;
     overflow-y: auto;
+    background: #fff;
     box-shadow: var(--shadow-soft);
   }
 
@@ -1168,9 +1193,20 @@ mark {
     inset: 0 0 0 auto;
     width: 88px;
     min-width: 88px;
+    min-height: 100%;
+    align-self: stretch;
     padding: 0;
     border: 0;
     border-radius: 0;
+  }
+
+  .saved-remove-button span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 
   .detail-panel,

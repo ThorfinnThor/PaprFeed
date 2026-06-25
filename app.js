@@ -52,7 +52,7 @@ const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
-const cacheKeyPrefix = "paprfeed:v69:last-feed";
+const cacheKeyPrefix = "paprfeed:v70:last-feed";
 const pubMedFilterMap = {
   all: "all",
   published: "all",
