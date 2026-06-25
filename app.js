@@ -17,6 +17,7 @@ const SAVED_COUNT = document.querySelector("#savedCount");
 const SAVED_PANEL = document.querySelector("#savedPanel");
 const PANEL_SAVED_COUNT = document.querySelector("#panelSavedCount");
 const SAVED_LIST = document.querySelector("#savedList");
+const RECENT_SEARCHES = document.querySelector("#recentSearches");
 const CLOSE_SAVED_BUTTON = document.querySelector("#closeSavedButton");
 const AUTH_STATUS = document.querySelector("#authStatus");
 const HEADER_SIGN_IN_BUTTON = document.querySelector("#headerSignInButton");
@@ -52,7 +53,8 @@ const savedKey = "paprfeed:saved";
 const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
-const cacheKeyPrefix = "paprfeed:v77:last-feed";
+const recentSearchesKey = "paprfeed:recent-searches";
+const cacheKeyPrefix = "paprfeed:v78:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -213,6 +215,53 @@ function getSavedControls() {
 
 function setSavedControls(settings = currentFeedSettings()) {
   localStorage.setItem(controlsKey, JSON.stringify({ ...settings, version: 1, savedAt: new Date().toISOString() }));
+}
+
+function getRecentSearches() {
+  try {
+    const searches = JSON.parse(localStorage.getItem(recentSearchesKey));
+    return Array.isArray(searches) ? searches.filter(Boolean).slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setRecentSearches(searches) {
+  localStorage.setItem(recentSearchesKey, JSON.stringify(searches.slice(0, 3)));
+}
+
+function renderRecentSearches() {
+  RECENT_SEARCHES.replaceChildren();
+  const searches = getRecentSearches();
+
+  if (!searches.length) {
+    const empty = document.createElement("span");
+    empty.textContent = "Your last searches will appear here.";
+    RECENT_SEARCHES.append(empty);
+    return;
+  }
+
+  searches.forEach((search) => {
+    const button = document.createElement("button");
+    button.className = "recent-search-button";
+    button.type = "button";
+    button.textContent = search;
+    button.addEventListener("click", () => {
+      TOPIC_INPUT.value = search;
+      setSavedControls();
+      loadFeedFromTopicInput();
+    });
+    RECENT_SEARCHES.append(button);
+  });
+}
+
+function addRecentSearch(topic) {
+  const search = cleanText(topic);
+  if (search.length < 2) return;
+  const normalizedSearch = normalizeSearchText(search);
+  const searches = getRecentSearches().filter((item) => normalizeSearchText(item) !== normalizedSearch);
+  setRecentSearches([search, ...searches]);
+  renderRecentSearches();
 }
 
 function currentFeedSettings() {
@@ -1888,6 +1937,7 @@ function loadFeedFromTopicInput() {
     setStatus("Keep typing", "Add a little more detail before searching.");
     return;
   }
+  addRecentSearch(topic);
   setSavedControls();
   loadFeed();
 }
@@ -1999,6 +2049,7 @@ if ("serviceWorker" in navigator) {
 resetPaging();
 setCategories(activeSource);
 renderSaved();
+renderRecentSearches();
 initAuth();
 const onboarding = getOnboarding();
 const savedControls = getSavedControls();

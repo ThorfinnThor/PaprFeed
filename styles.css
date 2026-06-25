@@ -863,14 +863,29 @@ mark {
   transform: translateX(-88px);
 }
 
-.note-list span {
+.note-list span,
+.recent-search-button {
   display: block;
+  width: 100%;
   padding: 9px 0;
+  border: 0;
   border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  background: transparent;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: left;
 }
 
-.note-list span:last-child {
+.note-list span:last-child,
+.recent-search-button:last-child {
   border-bottom: 0;
+}
+
+.recent-search-button:hover,
+.recent-search-button:focus-visible {
+  color: #174ea6;
 }
 
 .suggested-topic-button {
