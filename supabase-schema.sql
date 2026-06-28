@@ -9,7 +9,7 @@ create table if not exists public.saved_papers (
 alter table public.saved_papers enable row level security;
 alter table public.saved_papers force row level security;
 
-revoke all on public.saved_papers from public, anon;
+revoke all on public.saved_papers from public, anon, authenticated;
 grant select, insert, update, delete on public.saved_papers to authenticated;
 
 create index if not exists saved_papers_user_saved_at_idx
