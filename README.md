@@ -43,6 +43,7 @@ http://127.0.0.1:5173
 - PWA manifest
 - Service worker for basic offline caching
 - Cloudflare Pages Function proxy with edge caching in `functions/api/proxy.js`
+- Privacy-first Cloudflare Web Analytics support
 
 ## API usage and caching
 
@@ -70,7 +71,7 @@ Cloudflare Pages environment variable:
 Set it to your allowed domains separated by commas, for example:
 
 ```text
-https://paprfeed.pages.dev,https://www.your-domain.com
+https://paprfeed.com,https://www.paprfeed.com,https://paprfeed.pages.dev
 ```
 
 These are not required for a small test, but they are recommended before a bigger public launch.
@@ -107,13 +108,13 @@ only store reasonably sized saved-paper records.
 
 1. In Supabase, go to `Authentication`.
 2. Go to `URL Configuration`.
-3. Set `Site URL` to your live PaprFeed URL, for example:
+3. Set `Site URL` to your live PaprFeed URL:
 
 ```text
-https://paprfeed.pages.dev
+https://paprfeed.com
 ```
 
-4. Add the same URL to `Redirect URLs`.
+4. Add `https://paprfeed.com/**` and `https://paprfeed.pages.dev/**` to `Redirect URLs`.
 5. Go to `Providers`.
 6. Open `Google`.
 7. Enable Google.
@@ -128,7 +129,7 @@ https://your-project-ref.supabase.co/auth/v1/callback
 11. Under `Authorized JavaScript origins`, add your live PaprFeed origin:
 
 ```text
-https://paprfeed.pages.dev
+https://paprfeed.com
 ```
 
 12. Under `Authorized redirect URIs`, add the Supabase callback URL from step 8.
@@ -137,7 +138,7 @@ https://paprfeed.pages.dev
 15. Paste the Client ID and Client Secret.
 16. Save.
 
-Use your real Cloudflare Pages URL if it is different from `https://paprfeed.pages.dev`.
+Keep the Pages URL as a fallback redirect while `https://paprfeed.com` is the primary site URL.
 
 ### 4. Add Supabase URL and anon key
 
@@ -159,8 +160,31 @@ The anon key is meant to be public. Do not paste the service role key into this 
 
 - Never put the Supabase `service_role` key into this app or GitHub.
 - Keep Row Level Security enabled for every public Supabase table.
+- Run `supabase-security-audit.sql` in the Supabase SQL Editor after applying `supabase-schema.sql`.
+- In Supabase, open `Advisors` > `Security Advisor` and resolve every RLS or exposed-table warning before launch.
 - The Cloudflare `_headers` file adds browser security headers, including a Content Security Policy.
+- The research API proxy accepts only the exact arXiv, bioRxiv, medRxiv, and PubMed endpoints and query formats used by
+  PaprFeed. Keep `ALLOWED_ORIGINS` limited to your real PaprFeed domains.
 - The privacy page explains what is stored locally and what is synced after Google sign-in.
+
+## Visitor analytics
+
+Cloudflare Web Analytics is the recommended free option. It reports aggregate visitors, page views, referrers,
+countries, browsers, and performance without using analytics cookies or local storage.
+
+Enable it after uploading this version:
+
+1. Sign in to Cloudflare.
+2. Open `Workers & Pages`.
+3. Select the `paprfeed` Pages project.
+4. Open `Metrics`.
+5. Under `Web Analytics`, click `Enable`.
+6. Trigger one new deployment. Cloudflare adds its analytics script automatically on that deployment.
+7. Visit the live site from a phone or private browser window.
+8. Return to `Metrics` > `Web Analytics` after a few minutes to see the visit.
+
+The Content Security Policy in `_headers` permits only Cloudflare's analytics script and endpoint in addition to
+PaprFeed's existing dependencies. The privacy page already discloses this measurement.
 
 ### 5. Deploy again
 

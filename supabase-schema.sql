@@ -7,9 +7,13 @@ create table if not exists public.saved_papers (
 );
 
 alter table public.saved_papers enable row level security;
+alter table public.saved_papers force row level security;
 
-revoke all on public.saved_papers from anon;
+revoke all on public.saved_papers from public, anon;
 grant select, insert, update, delete on public.saved_papers to authenticated;
+
+create index if not exists saved_papers_user_saved_at_idx
+on public.saved_papers (user_id, saved_at desc);
 
 do $$
 begin
@@ -61,7 +65,7 @@ begin
 end;
 $$;
 
-revoke all on function public.enforce_saved_papers_limit() from public;
+revoke all on function public.enforce_saved_papers_limit() from public, anon, authenticated;
 
 drop trigger if exists enforce_saved_papers_limit on public.saved_papers;
 create trigger enforce_saved_papers_limit
@@ -74,26 +78,26 @@ create policy "Users can read own saved papers"
 on public.saved_papers
 for select
 to authenticated
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can insert own saved papers" on public.saved_papers;
 create policy "Users can insert own saved papers"
 on public.saved_papers
 for insert
 to authenticated
-with check (auth.uid() = user_id);
+with check ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can update own saved papers" on public.saved_papers;
 create policy "Users can update own saved papers"
 on public.saved_papers
 for update
 to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 drop policy if exists "Users can delete own saved papers" on public.saved_papers;
 create policy "Users can delete own saved papers"
 on public.saved_papers
 for delete
 to authenticated
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id);

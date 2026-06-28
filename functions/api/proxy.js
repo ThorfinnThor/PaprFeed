@@ -52,6 +52,10 @@ export async function onRequest({ request, env, waitUntil }) {
     return json({ error: "Path is not allowed" }, 403, corsOrigin);
   }
 
+  if (!hasAllowedQuery(targetUrl)) {
+    return json({ error: "Query is not allowed" }, 403, corsOrigin);
+  }
+
   addNcbiParams(targetUrl, env);
 
   const ttl = cacheDurations[targetUrl.hostname] ?? 300;
@@ -121,11 +125,71 @@ function allowedCorsOrigin(request, requestUrl, env) {
 
 function isAllowedPath(targetUrl) {
   if (targetUrl.hostname === "export.arxiv.org") return targetUrl.pathname === "/api/query";
-  if (targetUrl.hostname === "api.biorxiv.org") return targetUrl.pathname.startsWith("/details/");
+  if (targetUrl.hostname === "api.biorxiv.org") {
+    return /^\/details\/(?:biorxiv|medrxiv)\/\d{4}-\d{2}-\d{2}\/\d{4}-\d{2}-\d{2}\/\d+$/.test(
+      targetUrl.pathname,
+    );
+  }
   if (targetUrl.hostname === "eutils.ncbi.nlm.nih.gov") {
     return ["/entrez/eutils/esearch.fcgi", "/entrez/eutils/efetch.fcgi"].includes(targetUrl.pathname);
   }
   return false;
+}
+
+function hasAllowedQuery(targetUrl) {
+  if (targetUrl.hostname === "export.arxiv.org") {
+    if (!hasOnlyParams(targetUrl, ["search_query", "start", "max_results", "sortBy", "sortOrder"])) return false;
+    return (
+      isIntegerInRange(targetUrl.searchParams.get("start"), 0, 10000) &&
+      isIntegerInRange(targetUrl.searchParams.get("max_results"), 1, 100) &&
+      targetUrl.searchParams.get("sortBy") === "submittedDate" &&
+      targetUrl.searchParams.get("sortOrder") === "descending" &&
+      Boolean(targetUrl.searchParams.get("search_query"))
+    );
+  }
+
+  if (targetUrl.hostname === "api.biorxiv.org") {
+    return hasOnlyParams(targetUrl, ["category"]);
+  }
+
+  if (targetUrl.pathname.endsWith("/esearch.fcgi")) {
+    if (!hasOnlyParams(targetUrl, ["db", "term", "retmode", "retstart", "retmax", "sort", "reldate", "datetype"])) {
+      return false;
+    }
+    return (
+      targetUrl.searchParams.get("db") === "pubmed" &&
+      targetUrl.searchParams.get("retmode") === "json" &&
+      targetUrl.searchParams.get("sort") === "pub date" &&
+      targetUrl.searchParams.get("datetype") === "edat" &&
+      Boolean(targetUrl.searchParams.get("term")) &&
+      isIntegerInRange(targetUrl.searchParams.get("retstart"), 0, 10000) &&
+      isIntegerInRange(targetUrl.searchParams.get("retmax"), 1, 100) &&
+      isIntegerInRange(targetUrl.searchParams.get("reldate"), 1, 365)
+    );
+  }
+
+  if (targetUrl.pathname.endsWith("/efetch.fcgi")) {
+    if (!hasOnlyParams(targetUrl, ["db", "id", "retmode"])) return false;
+    const ids = targetUrl.searchParams.get("id") ?? "";
+    return (
+      targetUrl.searchParams.get("db") === "pubmed" &&
+      targetUrl.searchParams.get("retmode") === "xml" &&
+      /^\d+(?:,\d+){0,99}$/.test(ids)
+    );
+  }
+
+  return false;
+}
+
+function hasOnlyParams(targetUrl, allowedParams) {
+  const allowed = new Set(allowedParams);
+  return [...targetUrl.searchParams.keys()].every((key) => allowed.has(key));
+}
+
+function isIntegerInRange(value, minimum, maximum) {
+  if (!/^\d+$/.test(value ?? "")) return false;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= minimum && number <= maximum;
 }
 
 function addNcbiParams(targetUrl, env) {

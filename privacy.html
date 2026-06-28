@@ -5,29 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#F8F7F2" />
     <title>Privacy - PaprFeed</title>
-    <link rel="stylesheet" href="styles.css?v=80" />
+    <link rel="stylesheet" href="styles.css?v=81" />
   </head>
   <body>
     <main class="privacy-page">
       <a class="text-button subtle privacy-back" href="index.html">Back to PaprFeed</a>
       <h1>Privacy</h1>
+      <p>Last updated: 28 June 2026</p>
+      <h2>Research Feed and Searches</h2>
       <p>
         PaprFeed shows public research metadata from arXiv, bioRxiv, medRxiv, and PubMed. Searches are sent through
-        the app's Cloudflare proxy so the feed can load reliably.
+        the app's Cloudflare proxy and then to the selected research services so the feed can load reliably. Search
+        terms and technical request metadata are therefore processed by Cloudflare and the selected research service.
+      </p>
+      <h2>Audience Measurement</h2>
+      <p>
+        PaprFeed uses Cloudflare Web Analytics to measure aggregate visits, page views, referral sources, countries,
+        browsers, and page performance. Cloudflare states that Web Analytics does not use cookies or local storage for
+        measurement, does not fingerprint individual visitors, and does not collect or use visitors' personal data.
+        PaprFeed does not use analytics to build advertising profiles.
       </p>
       <h2>Saved Papers</h2>
       <p>
-        If you are not signed in, saved papers stay only in this browser. If you sign in with Google, saved papers are
-        synced to Supabase so they can appear on your other devices.
+        If you are not signed in, saved papers, hidden papers, recent searches, onboarding choices, and feed settings
+        stay in this browser. If you sign in with Google, saved-paper records are synced to Supabase so they can appear
+        on your other devices. Hidden papers, recent searches, and feed settings are not synced.
       </p>
       <h2>Login</h2>
       <p>
         Google login is handled by Supabase and Google. PaprFeed does not receive or store your Google password.
+        Supabase stores the authentication account needed for sign-in, which can include your Google account ID, email
+        address, basic profile information, session data, and login timestamps.
+      </p>
+      <h2>Sharing and Opening Papers</h2>
+      <p>
+        When you open a paper, use a DOI link, or share through another app, the destination service or app processes
+        that action under its own privacy policy.
       </p>
       <h2>Deleting Data</h2>
       <p>
-        You can unsave papers by tapping Saved again when the paper appears in the feed or details view. If you want all
-        cloud-synced saved-paper data deleted, contact the app owner from the place where this app was shared.
+        You can remove saved papers in PaprFeed. You can clear other local data by clearing this site's browser data.
+        If you want your Supabase authentication account and all cloud-synced saved-paper data deleted, contact the app
+        owner from the place where PaprFeed was shared with you.
       </p>
     </main>
   </body>
