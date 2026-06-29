@@ -55,7 +55,7 @@ const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v84:last-feed";
+const cacheKeyPrefix = "paprfeed:v85:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -716,6 +716,25 @@ function truncate(value, length = 430) {
   return `${text.slice(0, length).trim()}...`;
 }
 
+function splitAuthors(value) {
+  const text = cleanText(value);
+  if (!text) return [];
+  return text
+    .split(/\s*(?:,|;)\s+/)
+    .map((author) => cleanText(author))
+    .filter(Boolean);
+}
+
+function formatAuthorsForCard(value) {
+  const text = cleanText(value);
+  const authors = splitAuthors(text);
+  if (!text) return "Authors not listed";
+  if (text.length <= 130 || authors.length <= 5) return text;
+
+  const visibleAuthors = [...authors.slice(0, 3), "...", ...authors.slice(-2)];
+  return visibleAuthors.join(", ");
+}
+
 function formatDate(value) {
   if (!value) return "No date";
   const date = new Date(value);
@@ -1001,7 +1020,9 @@ function renderFeed() {
     sourcePill.classList.add(paper.source);
     node.querySelector(".paper-date").textContent = formatDate(paper.date);
     node.querySelector("h2").textContent = paper.title;
-    node.querySelector(".authors").textContent = paper.authors || "Authors not listed";
+    const authorLine = node.querySelector(".authors");
+    authorLine.textContent = formatAuthorsForCard(paper.authors);
+    authorLine.title = paper.authors || "Authors not listed";
     const journal = node.querySelector(".journal");
     journal.textContent = paper.journal ? paper.journal : "";
     journal.classList.toggle("hidden", !paper.journal);
@@ -1295,7 +1316,6 @@ function parseArxiv(xmlText) {
       sourceLabel: "arXiv",
       title,
       authors: [...entry.querySelectorAll("author name")]
-        .slice(0, 5)
         .map((author) => cleanText(author.textContent))
         .join(", "),
       abstract: cleanText(entry.querySelector("summary")?.textContent),
@@ -1587,7 +1607,6 @@ function parsePubMedArticles(xmlText) {
       .filter(Boolean)
       .join(" ");
     const authors = [...article.querySelectorAll("AuthorList Author")]
-      .slice(0, 5)
       .map((author) => {
         const collective = cleanText(author.querySelector("CollectiveName")?.textContent);
         if (collective) return collective;
