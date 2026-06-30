@@ -55,7 +55,7 @@ const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v85:last-feed";
+const cacheKeyPrefix = "paprfeed:v86:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -737,9 +737,20 @@ function formatAuthorsForCard(value) {
 
 function formatDate(value) {
   if (!value) return "No date";
-  const date = new Date(value);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = new Date(dateOnly ? `${value}T00:00:00Z` : value);
   if (Number.isNaN(date.valueOf())) return cleanText(value);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    ...(dateOnly ? { timeZone: "UTC" } : {}),
+  });
+}
+
+function formatPaperDate(paper) {
+  const formatted = formatDate(paper.date);
+  return paper.dateKind === "indexed" && formatted !== "No date" ? `Added ${formatted}` : formatted;
 }
 
 function dateValue(value) {
@@ -1018,7 +1029,7 @@ function renderFeed() {
 
     sourcePill.textContent = paper.sourceLabel;
     sourcePill.classList.add(paper.source);
-    node.querySelector(".paper-date").textContent = formatDate(paper.date);
+    node.querySelector(".paper-date").textContent = formatPaperDate(paper);
     node.querySelector("h2").textContent = paper.title;
     const authorLine = node.querySelector(".authors");
     authorLine.textContent = formatAuthorsForCard(paper.authors);
@@ -1078,7 +1089,7 @@ function renderSaved() {
     link.textContent = paper.title;
 
     const meta = document.createElement("span");
-    meta.textContent = [paper.sourceLabel, paper.journal, formatDate(paper.date)].filter(Boolean).join(" · ");
+    meta.textContent = [paper.sourceLabel, paper.journal, formatPaperDate(paper)].filter(Boolean).join(" · ");
 
     const removeButton = document.createElement("button");
     removeButton.className = "saved-remove-button";
@@ -1238,7 +1249,7 @@ function openDetail(paper) {
   currentDetailPaper = paper;
   DETAIL_SOURCE.textContent = paper.sourceLabel;
   DETAIL_SOURCE.className = `source-pill ${paper.source}`;
-  DETAIL_DATE.textContent = formatDate(paper.date);
+  DETAIL_DATE.textContent = formatPaperDate(paper);
   DETAIL_TITLE.textContent = paper.title;
   DETAIL_AUTHORS.textContent = paper.authors || "Authors not listed";
   DETAIL_JOURNAL.textContent = paper.journal || "";
@@ -1573,23 +1584,54 @@ function dateFromMedlineText(value) {
   return match ? isoDateFromParts(match[1], match[2] || "1", "1") : "";
 }
 
+function earliestValidPubMedDate(values) {
+  const endOfTodayUtc = new Date();
+  endOfTodayUtc.setUTCHours(23, 59, 59, 999);
+
+  return (
+    values
+      .map((value) => cleanText(value))
+      .filter((value) => {
+        const timestamp = dateValue(value);
+        return timestamp && timestamp <= endOfTodayUtc.valueOf();
+      })
+      .sort((a, b) => dateValue(a) - dateValue(b))[0] || ""
+  );
+}
+
+function pubMedHistoryDate(article, ...statuses) {
+  return earliestValidPubMedDate(
+    [...article.querySelectorAll("PubMedPubDate")]
+      .filter((node) => statuses.includes(cleanText(node.getAttribute("PubStatus")).toLowerCase()))
+      .map(dateFromPubMedNode),
+  );
+}
+
 function parsePubMedDate(article) {
-  const candidates = [];
-  const addDate = (value) => {
-    const date = cleanText(value);
-    const timestamp = dateValue(date);
-    if (date && timestamp && timestamp <= Date.now() + 86400000) candidates.push(date);
-  };
+  const articleDates = [...article.querySelectorAll("ArticleDate")];
+  const electronicArticleDates = articleDates.filter(
+    (node) => cleanText(node.getAttribute("DateType")).toLowerCase() === "electronic",
+  );
+  const journalDates = [...article.querySelectorAll("JournalIssue PubDate")].flatMap((node) => [
+    dateFromPubMedNode(node),
+    dateFromMedlineText(node.querySelector("MedlineDate")?.textContent),
+  ]);
 
-  article.querySelectorAll("ArticleDate").forEach((node) => addDate(dateFromPubMedNode(node)));
-  article.querySelectorAll("JournalIssue PubDate").forEach((node) => {
-    addDate(dateFromPubMedNode(node));
-    addDate(dateFromMedlineText(node.querySelector("MedlineDate")?.textContent));
-  });
-  article.querySelectorAll("PubMedPubDate").forEach((node) => addDate(dateFromPubMedNode(node)));
+  return (
+    earliestValidPubMedDate(electronicArticleDates.map(dateFromPubMedNode)) ||
+    earliestValidPubMedDate(articleDates.map(dateFromPubMedNode)) ||
+    pubMedHistoryDate(article, "epublish", "aheadofprint") ||
+    earliestValidPubMedDate(journalDates) ||
+    pubMedHistoryDate(article, "ppublish")
+  );
+}
 
-  if (!candidates.length) return "";
-  return candidates.sort((a, b) => dateValue(b) - dateValue(a))[0];
+function parsePubMedIndexedDate(article) {
+  return (
+    pubMedHistoryDate(article, "pubmed") ||
+    pubMedHistoryDate(article, "entrez") ||
+    pubMedHistoryDate(article, "medline")
+  );
 }
 
 function parsePubMedArticles(xmlText) {
@@ -1628,6 +1670,9 @@ function parsePubMedArticles(xmlText) {
       return ids;
     }, {});
 
+    const publicationDate = parsePubMedDate(article);
+    const indexedDate = publicationDate ? "" : parsePubMedIndexedDate(article);
+
     return {
       id: `pubmed:${pmid}`,
       source: "pubmed",
@@ -1639,7 +1684,8 @@ function parsePubMedArticles(xmlText) {
       pmcid: articleIds.pmc,
       publicationTypes,
       abstract: abstract || "No abstract was included in the PubMed record for this paper.",
-      date: parsePubMedDate(article),
+      date: publicationDate || indexedDate,
+      dateKind: publicationDate ? "published" : indexedDate ? "indexed" : "",
       url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
     };
   });
