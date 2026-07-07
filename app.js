@@ -55,7 +55,7 @@ const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v88:last-feed";
+const cacheKeyPrefix = "paprfeed:v89:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
@@ -402,7 +402,7 @@ function latestFeedSettings() {
 
 function feedSettingsFromUrl() {
   const params = new URLSearchParams(window.location.search);
-  const topic = cleanText(params.get("topic") || "");
+  const topic = cleanText(params.get("topic") || params.get("q") || "");
   if (!topic) return null;
   const source = sourceSettings[params.get("source")] ? params.get("source") : "all";
   return {
@@ -413,6 +413,23 @@ function feedSettingsFromUrl() {
     range: params.get("range") || "7",
     sort: params.get("sort") || "newest",
   };
+}
+
+function applyUrlFeedSettings(settings) {
+  applyFeedSettings(settings);
+  setSavedControls(settings);
+  addRecentSearch(settings.topic);
+  loadFeed();
+
+  const enforceUrlTopic = () => {
+    if (cleanText(TOPIC_INPUT.value) === cleanText(settings.topic)) return;
+    applyFeedSettings(settings);
+    setSavedControls(settings);
+    loadFeed();
+  };
+
+  window.setTimeout(enforceUrlTopic, 80);
+  window.setTimeout(enforceUrlTopic, 600);
 }
 
 function completeOnboarding(settings) {
@@ -2138,9 +2155,7 @@ const onboarding = getOnboarding();
 const savedControls = getSavedControls();
 const urlFeedSettings = feedSettingsFromUrl();
 if (urlFeedSettings) {
-  applyFeedSettings(urlFeedSettings);
-  addRecentSearch(urlFeedSettings.topic);
-  loadFeed();
+  applyUrlFeedSettings(urlFeedSettings);
 } else if (savedControls?.version === 1) {
   applyFeedSettings(savedControls);
   loadFeed();
