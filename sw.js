@@ -1,4 +1,4 @@
-const CACHE_NAME = "paprfeed-v89";
+const CACHE_NAME = "paprfeed-v90";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -42,8 +42,8 @@ const APP_FILES = [
   "./topics/epidemiology/",
   "./privacy.html",
   "./manifest.webmanifest",
-  "./assets/icon.svg?v=89",
-  "./assets/icon-512.png?v=89",
+  "./assets/icon.svg?v=90",
+  "./assets/icon-512.png?v=90",
   "./assets/book-logo.svg",
   "./assets/og-paprfeed.png",
 ];

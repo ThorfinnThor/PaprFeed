@@ -147,6 +147,63 @@ p {
   background: var(--blue);
 }
 
+.topic-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.topic-source-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.topic-source-button:hover {
+  transform: translateY(-1px);
+}
+
+.topic-source-button.pubmed {
+  border-color: rgba(47, 111, 237, 0.4);
+  background: #edf4ff;
+  color: #174ea6;
+}
+
+.topic-source-button.arxiv {
+  border-color: rgba(194, 59, 59, 0.32);
+  background: #fff2f2;
+  color: #9f2d2d;
+}
+
+.topic-source-button.biorxiv {
+  border-color: rgba(15, 143, 140, 0.36);
+  background: #edfafa;
+  color: #0f716f;
+}
+
+.topic-source-button.medrxiv {
+  border-color: rgba(122, 92, 154, 0.34);
+  background: #f6f0fb;
+  color: #64447f;
+}
+
 .topic-grid,
 .topic-list {
   display: grid;
@@ -258,6 +315,10 @@ p {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
+}
+
+.topics-nav-button {
+  color: #174ea6;
 }
 
 .top-search {
@@ -411,7 +472,8 @@ p {
 
 .tab:hover,
 .filter-chip:hover,
-.suggested-topic-button:hover {
+.suggested-topic-button:hover,
+.topic-directory-link:hover {
   color: var(--ink);
   border-color: var(--line);
   background: #fff;
@@ -447,6 +509,7 @@ select {
 .icon-button,
 .load-more-button,
 .suggested-topic-button,
+.topic-directory-link,
 .saved-remove-button {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -487,7 +550,8 @@ select {
 .text-button:hover,
 .icon-button:hover,
 .load-more-button:hover,
-.suggested-topic-button:hover {
+.suggested-topic-button:hover,
+.topic-directory-link:hover {
   border-color: rgba(47, 111, 237, 0.36);
   color: #174ea6;
   background: var(--blue-soft);
@@ -1021,6 +1085,18 @@ mark {
   text-align: left;
 }
 
+.topic-directory-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 11px;
+  color: #174ea6;
+  background: var(--blue-soft);
+  font-weight: 800;
+  text-align: left;
+  text-decoration: none;
+}
+
 .detail-panel,
 .onboarding-panel {
   position: fixed;
@@ -1413,6 +1489,15 @@ mark {
   .topic-actions .text-button {
     width: 100%;
   }
+
+  .topic-source-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .topic-source-button {
+    width: 100%;
+  }
 }
 
 @media (max-width: 430px) {
@@ -1431,8 +1516,9 @@ mark {
   }
 
   .top-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr 46px;
+    display: flex;
+    flex-wrap: wrap;
+  }
   }
 
   .paper-actions button,
