@@ -19,3 +19,4 @@ PaprFeed is under active development.
 
 Copyright (c) 2026 PaprFeed. All rights reserved.
 
+This repository is publicly visible, but no license is granted to copy, modify, redistribute, or deploy the source code except as permitted by GitHub's Terms of Service.

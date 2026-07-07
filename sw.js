@@ -1,14 +1,18 @@
-const CACHE_NAME = "paprfeed-v86";
+const CACHE_NAME = "paprfeed-v87";
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./supabase-config.js",
+  "./about.html",
+  "./sources.html",
   "./privacy.html",
   "./manifest.webmanifest",
-  "./assets/icon.svg?v=86",
+  "./assets/icon.svg?v=87",
+  "./assets/icon-512.png?v=87",
   "./assets/book-logo.svg",
+  "./assets/og-paprfeed.png",
 ];
 
 self.addEventListener("install", (event) => {
