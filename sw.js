@@ -1,4 +1,4 @@
-const CACHE_NAME = "paprfeed-v87";
+const CACHE_NAME = "paprfeed-v88";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -7,10 +7,23 @@ const APP_FILES = [
   "./supabase-config.js",
   "./about.html",
   "./sources.html",
+  "./topics/",
+  "./topics/car-t-cell-therapy/",
+  "./topics/bcma-car-t/",
+  "./topics/cd19-car-t/",
+  "./topics/antibody-drug-conjugates/",
+  "./topics/flow-cytometry/",
+  "./topics/single-cell-rna-sequencing/",
+  "./topics/spatial-transcriptomics/",
+  "./topics/crispr-gene-editing/",
+  "./topics/cancer-immunotherapy/",
+  "./topics/ai-in-medicine/",
+  "./topics/llms-in-medicine/",
+  "./topics/neuroscience/",
   "./privacy.html",
   "./manifest.webmanifest",
-  "./assets/icon.svg?v=87",
-  "./assets/icon-512.png?v=87",
+  "./assets/icon.svg?v=88",
+  "./assets/icon-512.png?v=88",
   "./assets/book-logo.svg",
   "./assets/og-paprfeed.png",
 ];

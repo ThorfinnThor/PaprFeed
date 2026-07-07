@@ -113,6 +113,93 @@ p {
   font-weight: 700;
 }
 
+.topic-page {
+  width: min(100% - 32px, 920px);
+}
+
+.topic-hero {
+  padding: clamp(24px, 5vw, 44px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.topic-hero h1 {
+  margin-bottom: 14px;
+  font-size: clamp(2.25rem, 6vw, 4.1rem);
+  line-height: 0.98;
+}
+
+.topic-hero p {
+  max-width: 720px;
+}
+
+.topic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.topic-actions .text-button:first-child {
+  border-color: var(--blue);
+  color: #fff;
+  background: var(--blue);
+}
+
+.topic-grid,
+.topic-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.topic-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.topic-card,
+.topic-note {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.topic-card h2,
+.topic-note h2 {
+  margin-bottom: 8px;
+}
+
+.topic-card p,
+.topic-note p {
+  margin-bottom: 0;
+}
+
+.topic-card a {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+.topic-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.topic-link-list a {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid rgba(47, 111, 237, 0.3);
+  border-radius: 999px;
+  color: #174ea6;
+  background: var(--blue-soft);
+  font-weight: 800;
+}
+
 .not-found-page {
   min-height: 70vh;
   display: flex;
@@ -1313,6 +1400,18 @@ mark {
 
   .choice-grid {
     grid-template-columns: 1fr;
+  }
+
+  .topic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-hero {
+    padding: 20px 16px;
+  }
+
+  .topic-actions .text-button {
+    width: 100%;
   }
 }
 
