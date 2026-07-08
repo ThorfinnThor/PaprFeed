@@ -31,48 +31,58 @@
     <title>PaprFeed: Latest Research Papers from PubMed, arXiv and bioRxiv</title>
     <link rel="canonical" href="https://paprfeed.com/" />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="assets/icon.svg?v=90" type="image/svg+xml" />
-    <link rel="shortcut icon" href="assets/icon.svg?v=90" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="assets/icon-512.png?v=90" />
-    <link rel="stylesheet" href="styles.css?v=90" />
+    <link rel="help" href="llms.txt" type="text/plain" />
+    <link rel="icon" href="assets/icon.svg?v=91" type="image/svg+xml" />
+    <link rel="shortcut icon" href="assets/icon.svg?v=91" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/icon-512.png?v=91" />
+    <link rel="stylesheet" href="styles.css?v=91" />
     <script type="application/ld+json">
       {
-        "@context": "https://schema.org",
-        "@graph": [
-          {
-            "@type": "Organization",
-            "@id": "https://paprfeed.com/#organization",
-            "name": "PaprFeed",
-            "url": "https://paprfeed.com/",
-            "logo": "https://paprfeed.com/assets/icon-512.png"
-          },
-          {
-            "@type": "WebSite",
-            "@id": "https://paprfeed.com/#website",
-            "url": "https://paprfeed.com/",
-            "name": "PaprFeed",
-            "description": "A searchable feed for discovering recent research papers from PubMed, arXiv, bioRxiv, and medRxiv.",
-            "inLanguage": "en",
-            "publisher": { "@id": "https://paprfeed.com/#organization" }
-          },
-          {
-            "@type": "WebApplication",
-            "@id": "https://paprfeed.com/#app",
-            "name": "PaprFeed",
-            "url": "https://paprfeed.com/",
-            "applicationCategory": "EducationalApplication",
-            "operatingSystem": "Any",
-            "browserRequirements": "Requires a modern web browser with JavaScript enabled.",
-            "description": "Search, filter, save, and browse recent research papers from major public research sources.",
-            "isAccessibleForFree": true,
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
-            },
-            "publisher": { "@id": "https://paprfeed.com/#organization" }
-          }
-        ]
+              "@context": "https://schema.org",
+              "@graph": [
+                      {
+                              "@type": "Organization",
+                              "@id": "https://paprfeed.com/#organization",
+                              "name": "PaprFeed",
+                              "url": "https://paprfeed.com/",
+                              "logo": "https://paprfeed.com/assets/icon-512.png"
+                      },
+                      {
+                              "@type": "WebSite",
+                              "@id": "https://paprfeed.com/#website",
+                              "url": "https://paprfeed.com/",
+                              "name": "PaprFeed",
+                              "description": "A searchable feed for discovering recent research papers from PubMed, arXiv, bioRxiv, and medRxiv.",
+                              "inLanguage": "en",
+                              "publisher": {
+                                      "@id": "https://paprfeed.com/#organization"
+                              },
+                              "potentialAction": {
+                                      "@type": "SearchAction",
+                                      "target": "https://paprfeed.com/?q={search_term_string}",
+                                      "query-input": "required name=search_term_string"
+                              }
+                      },
+                      {
+                              "@type": "WebApplication",
+                              "@id": "https://paprfeed.com/#app",
+                              "name": "PaprFeed",
+                              "url": "https://paprfeed.com/",
+                              "applicationCategory": "EducationalApplication",
+                              "operatingSystem": "Any",
+                              "browserRequirements": "Requires a modern web browser with JavaScript enabled.",
+                              "description": "Search, filter, save, and browse recent research papers from major public research sources.",
+                              "isAccessibleForFree": true,
+                              "offers": {
+                                      "@type": "Offer",
+                                      "price": "0",
+                                      "priceCurrency": "USD"
+                              },
+                              "publisher": {
+                                      "@id": "https://paprfeed.com/#organization"
+                              }
+                      }
+              ]
       }
     </script>
   </head>
@@ -176,6 +186,14 @@
             <p>
               Browse papers from arXiv, bioRxiv, medRxiv, PubMed, and selected topic areas in one calm reading queue.
             </p>
+          <nav class="topic-strip" aria-label="Popular research topics">
+            <a href="topics/car-t-cell-therapy/">CAR-T</a>
+            <a href="topics/antibody-drug-conjugates/">ADCs</a>
+            <a href="topics/single-cell-rna-sequencing/">Single-cell</a>
+            <a href="topics/spatial-transcriptomics/">Spatial omics</a>
+            <a href="topics/ai-in-medicine/">AI in medicine</a>
+            <a href="topics/">All topics</a>
+          </nav>
           </section>
 
           <section class="feed-status" aria-live="polite">
@@ -225,10 +243,12 @@
               <h2>Suggested Topics</h2>
             </div>
             <div class="suggested-topics">
+              <button class="suggested-topic-button" type="button" data-topic="CAR-T">CAR-T cell therapy</button>
+              <button class="suggested-topic-button" type="button" data-topic="antibody drug conjugate">Antibody drug conjugates</button>
               <button class="suggested-topic-button" type="button" data-topic="single-cell RNA sequencing">Single-cell RNA sequencing</button>
-              <button class="suggested-topic-button" type="button" data-topic="antibody drug conjugate">Antibody drug conjugate</button>
+              <button class="suggested-topic-button" type="button" data-topic="spatial transcriptomics">Spatial transcriptomics</button>
               <button class="suggested-topic-button" type="button" data-topic="large language model medicine">LLMs in medicine</button>
-              <a class="topic-directory-link" href="topics/">Browse all research topics</a>
+              <a class="topic-directory-link" href="topics/">Browse all 74 research topics</a>
             </div>
           </section>
         </aside>
@@ -380,6 +400,6 @@
       </article>
     </template>
 
-    <script src="app.js?v=90" type="module"></script>
+    <script src="app.js?v=91" type="module"></script>
   </body>
 </html>

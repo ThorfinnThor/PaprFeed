@@ -1,0 +1,13 @@
+# PaprFeed
+
+PaprFeed is a free research-paper discovery web app for browsing recent scientific papers from PubMed, arXiv, bioRxiv, and medRxiv.
+
+Primary URL: https://paprfeed.com/
+Topic directory: https://paprfeed.com/topics/
+Research sources: https://paprfeed.com/sources.html
+About: https://paprfeed.com/about.html
+Privacy: https://paprfeed.com/privacy.html
+
+Useful topic feeds include CAR-T cell therapy, BCMA CAR-T, CD19 CAR-T, antibody drug conjugates, flow cytometry, single-cell RNA sequencing, spatial transcriptomics, CRISPR gene editing, cancer immunotherapy, AI in medicine, LLMs in medicine, immunology, microbiome, drug discovery, clinical trials, and public health.
+
+PaprFeed is intended for research discovery. It links users back to original source records and publisher pages. It is not medical advice.
