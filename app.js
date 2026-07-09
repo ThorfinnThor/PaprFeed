@@ -55,7 +55,7 @@ const hiddenKey = "paprfeed:hidden";
 const onboardingKey = "paprfeed:onboarding";
 const controlsKey = "paprfeed:controls";
 const recentSearchesKey = "paprfeed:recent-searches";
-const cacheKeyPrefix = "paprfeed:v92:last-feed";
+const cacheKeyPrefix = "paprfeed:v93:last-feed";
 const localFallbackProxyOrigin = "https://paprfeed.com";
 const pubMedFilterMap = {
   all: "all",
