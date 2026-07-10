@@ -122,7 +122,7 @@ body.static-topic-body {
 
 .static-topic-topbar {
   display: flex;
-  width: min(100% - 48px, 1320px);
+  width: min(100% - 48px, 1180px);
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -168,7 +168,7 @@ body.static-topic-body {
 }
 
 .topic-page {
-  width: min(100% - 48px, 1320px);
+  width: min(100% - 48px, 1180px);
   padding-top: 18px;
 }
 
@@ -179,26 +179,26 @@ body.static-topic-body {
 .topic-hero {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 470px);
-  column-gap: clamp(28px, 5vw, 72px);
-  row-gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 390px);
+  column-gap: clamp(24px, 4vw, 52px);
+  row-gap: 16px;
   align-items: center;
   overflow: hidden;
-  min-height: clamp(360px, 42vw, 520px);
-  padding: clamp(40px, 6vw, 76px);
+  min-height: clamp(260px, 28vw, 360px);
+  padding: clamp(28px, 4vw, 48px);
   border: 1px solid var(--line);
   border-radius: 22px;
   background:
     linear-gradient(135deg, rgba(237, 244, 255, 0.9), rgba(255, 255, 255, 0) 58%),
     radial-gradient(circle at 92% 15%, rgba(255, 243, 196, 0.64), transparent 17rem),
     #fff;
-  box-shadow: 0 24px 60px rgba(27, 29, 31, 0.07);
+  box-shadow: 0 18px 44px rgba(27, 29, 31, 0.06);
 }
 
 .topic-hero::before {
   content: "";
   position: absolute;
-  inset: 34px auto 34px 0;
+  inset: 28px auto 28px 0;
   width: 4px;
   border-radius: 999px;
   background: var(--blue);
@@ -211,18 +211,18 @@ body.static-topic-body {
 }
 
 .topic-hero h1 {
-  max-width: 800px;
-  margin-bottom: 10px;
-  font-size: clamp(3rem, 5.4vw, 6.2rem);
-  line-height: 0.9;
+  max-width: 720px;
+  margin-bottom: 8px;
+  font-size: clamp(2.45rem, 4vw, 4.45rem);
+  line-height: 0.95;
   letter-spacing: 0;
 }
 
 .topic-hero p {
-  max-width: 780px;
+  max-width: 680px;
   margin-bottom: 0;
-  font-size: clamp(1rem, 1.2vw, 1.12rem);
-  line-height: 1.68;
+  font-size: clamp(0.96rem, 1vw, 1.05rem);
+  line-height: 1.6;
 }
 
 .topic-hero > .kicker,
@@ -242,9 +242,9 @@ body.static-topic-body {
 }
 
 .topic-actions .text-button {
-  min-height: 44px;
-  padding: 0 18px;
-  font-size: 0.95rem;
+  min-height: 40px;
+  padding: 0 15px;
+  font-size: 0.9rem;
 }
 
 .topic-actions .text-button:first-child {
@@ -260,25 +260,25 @@ body.static-topic-body {
   grid-column: 2;
   grid-row: 3 / span 2;
   margin-top: 0;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid rgba(229, 225, 216, 0.82);
-  border-radius: 16px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 32px rgba(27, 29, 31, 0.06);
+  box-shadow: 0 8px 22px rgba(27, 29, 31, 0.045);
 }
 
 .topic-source-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 8px 12px;
+  min-height: 40px;
+  padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
   color: var(--ink);
   font-family: Inter, system-ui, sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 700;
   text-align: center;
   text-decoration: none;
@@ -319,8 +319,8 @@ body.static-topic-body {
 .topic-grid,
 .topic-list {
   display: grid;
-  gap: 18px;
-  margin-top: 22px;
+  gap: 16px;
+  margin-top: 18px;
 }
 
 .topic-grid {
@@ -328,21 +328,21 @@ body.static-topic-body {
 }
 
 .topic-grid[aria-label="PaprFeed research topics"] {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
 }
 
 .topic-card,
 .topic-note {
-  padding: 22px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(27, 29, 31, 0.03);
 }
 
 .topic-card {
-  min-height: 142px;
+  min-height: 138px;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -382,18 +382,18 @@ body.static-topic-body {
 
 .topic-search-examples,
 .topic-faq {
-  margin-top: 18px;
-  padding: 22px;
+  margin-top: 16px;
+  padding: 18px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 16px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(27, 29, 31, 0.03);
 }
 
 .topic-search-examples {
   display: grid;
-  grid-template-columns: minmax(300px, 0.55fr) minmax(0, 1.45fr);
-  gap: 24px;
+  grid-template-columns: minmax(260px, 0.62fr) minmax(0, 1.38fr);
+  gap: 18px;
   align-items: center;
 }
 
@@ -425,12 +425,12 @@ body.static-topic-body {
 .topic-faq-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 14px;
+  gap: 12px;
+  margin-top: 10px;
 }
 
 .topic-faq-card {
-  padding: 18px;
+  padding: 14px;
   border: 1px solid rgba(229, 225, 216, 0.9);
   border-radius: 14px;
   background: #fbfcff;
@@ -450,10 +450,10 @@ body.static-topic-body {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 18px;
-  padding: 18px;
+  margin-top: 16px;
+  padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(27, 29, 31, 0.03);
 }
@@ -1487,7 +1487,7 @@ mark {
 }
 
 .privacy-page.topic-page {
-  width: min(100% - 48px, 1320px);
+  width: min(100% - 48px, 1180px);
 }
 
 .content-page .topic-card h2 a {
@@ -1524,7 +1524,7 @@ mark {
   }
 
   .topic-grid[aria-label="PaprFeed research topics"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1827,7 +1827,7 @@ mark {
   }
 
   .static-topic-topbar {
-    width: min(100% - 24px, 1320px);
+    width: min(100% - 24px, 1180px);
     flex-direction: column;
     align-items: flex-start;
     padding-top: 16px;
@@ -1844,7 +1844,7 @@ mark {
   }
 
   .topic-page {
-    width: min(100% - 24px, 1320px);
+    width: min(100% - 24px, 1180px);
     padding-top: 14px;
   }
 
@@ -1859,7 +1859,7 @@ mark {
   .topic-hero {
     display: block;
     min-height: 0;
-    padding: 28px 20px;
+    padding: 24px 18px;
     border-radius: 14px;
   }
 
@@ -1868,8 +1868,8 @@ mark {
   }
 
   .topic-hero h1 {
-    font-size: clamp(2.3rem, 11vw, 3.35rem);
-    line-height: 0.92;
+    font-size: clamp(2.05rem, 9vw, 2.85rem);
+    line-height: 0.98;
   }
 
   .topic-hero p {
@@ -1895,7 +1895,7 @@ mark {
   .topic-source-button {
     width: 100%;
     justify-content: center;
-    min-height: 44px;
+    min-height: 40px;
     padding: 6px 8px;
     font-size: 0.76rem;
     line-height: 1.15;
